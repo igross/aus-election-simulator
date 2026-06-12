@@ -1,0 +1,1956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 Victorian State Election Swing Simulator</title>
+<style>
+  :root {
+    --alp: #E53935;
+    --lnp: #1565C0;
+    --grn: #43A047;
+    --ind: #808080;
+    --onp: #F57C00;
+    --bg: #f5f6fa;
+    --card: #fff;
+    --text: #1a1a2e;
+    --border: #ddd;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  header {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    color: #fff;
+    padding: 1.2rem 1.5rem;
+    text-align: center;
+  }
+  header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+  header p { font-size: 0.85rem; opacity: 0.7; margin-top: 0.25rem; }
+  .main {
+    display: grid;
+    grid-template-columns: 370px 1fr;
+    gap: 1rem;
+    max-width: 1400px;
+    margin: 1rem auto;
+    padding: 0 1rem;
+  }
+  @media (max-width: 900px) {
+    .main { grid-template-columns: 1fr; }
+    .panel-left { position: static; }
+  }
+  .card {
+    background: var(--card);
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    padding: 1.2rem;
+  }
+  .panel-left {
+    position: sticky;
+    top: 1rem;
+    align-self: start;
+  }
+  .panel-left .card + .card { margin-top: 1rem; }
+  h2 { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.8rem; color: #333; }
+
+  /* Slider styles */
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.55rem;
+  }
+  .lock-btn {
+    width: 22px;
+    height: 22px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s;
+    color: #999;
+    padding: 0;
+    line-height: 1;
+  }
+  .lock-btn:hover { border-color: #999; }
+  .lock-btn.locked { background: #333; color: #fff; border-color: #333; }
+  .slider-label {
+    width: 36px;
+    font-weight: 600;
+    font-size: 0.82rem;
+    flex-shrink: 0;
+  }
+  .slider-wrap { flex: 1; position: relative; }
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    outline: none;
+    background: #e0e0e0;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  input[type="range"].locked-slider {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+  .slider-alp input[type="range"]::-webkit-slider-thumb { background: var(--alp); }
+  .slider-coal input[type="range"]::-webkit-slider-thumb { background: var(--lnp); }
+  .slider-grn input[type="range"]::-webkit-slider-thumb { background: var(--grn); }
+  .slider-onp input[type="range"]::-webkit-slider-thumb { background: var(--onp); }
+  .slider-oth input[type="range"]::-webkit-slider-thumb { background: var(--ind); }
+  .slider-val {
+    width: 52px;
+    text-align: right;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+  .total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+    margin-top: 0.3rem;
+    font-size: 0.85rem;
+  }
+  .total-row .total-val { font-weight: 700; }
+  .slider-hint {
+    font-size: 0.7rem;
+    color: #999;
+    margin-top: 0.3rem;
+    line-height: 1.4;
+  }
+  .btn-reset {
+    display: inline-block;
+    margin-top: 0.7rem;
+    padding: 0.4rem 1rem;
+    background: #eee;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-reset:hover { background: #ddd; }
+
+  /* Seat-level Sankey */
+  .seat-sankey svg { width: 100%; height: auto; }
+
+  /* Preference options */
+  .pref-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+  }
+  @media (max-width: 900px) {
+    .pref-grid { grid-template-columns: 1fr; }
+  }
+  .pref-group {
+    border-radius: 8px;
+    padding: 0.6rem;
+    border-left: 4px solid #ccc;
+  }
+  .pref-group.pref-grn { background: #e8f5e9; border-left-color: var(--grn); }
+  .pref-group.pref-onp { background: #fff3e0; border-left-color: var(--onp); }
+  .pref-group.pref-oth { background: #f5f5f5; border-left-color: var(--ind); }
+  .pref-title { font-size: 0.75rem; font-weight: 600; color: #555; margin-bottom: 0.4rem; line-height: 1.3; }
+  .pref-group.pref-grn .pref-title { color: #2e7d32; }
+  .pref-group.pref-onp .pref-title { color: #e65100; }
+  .pref-group.pref-oth .pref-title { color: #555; }
+  .pref-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.35rem;
+    padding: 0.25rem 0.4rem;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    transition: background 0.1s;
+  }
+  .pref-option:hover { background: rgba(255,255,255,0.6); }
+  .pref-option input[type="radio"] { margin-top: 0.15rem; flex-shrink: 0; }
+  .pref-option .pref-desc { font-size: 0.65rem; color: #888; }
+  .pref-option.benefits-alp { background: rgba(229,57,53,0.22); border-radius: 4px; border-left: 3px solid var(--alp); }
+  .pref-option.benefits-coal { background: rgba(21,101,192,0.22); border-radius: 4px; border-left: 3px solid var(--lnp); }
+  .pref-option.benefits-on { background: rgba(245,124,0,0.22); border-radius: 4px; border-left: 3px solid var(--onp); }
+
+  /* TPP display */
+  .tpp-display {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem;
+  }
+  .tpp-stat {
+    text-align: center;
+    flex: 1;
+    min-width: 100px;
+  }
+  .tpp-stat .label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.04em; }
+  .tpp-stat .value { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .tpp-stat .value.alp { color: var(--alp); }
+  .tpp-stat .value.lnp { color: var(--lnp); }
+  .tpp-stat .value.swing-pos { color: var(--alp); }
+  .tpp-stat .value.swing-neg { color: var(--lnp); }
+  .tpp-stat .value.swing-zero { color: #888; }
+
+  /* Seat counts */
+  .seat-counts {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.8rem;
+  }
+  .seat-count {
+    flex: 1;
+    min-width: 70px;
+    text-align: center;
+    padding: 0.5rem;
+    border-radius: 6px;
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.2rem;
+  }
+  .seat-count .sc-label { font-size: 0.65rem; font-weight: 400; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.04em; }
+  .seat-count.alp { background: var(--alp); }
+  .seat-count.coal { background: var(--lnp); }
+  .seat-count.grn { background: var(--grn); }
+  .seat-count.onp { background: var(--onp); }
+  .seat-count.oth { background: var(--ind); }
+  .majority-line {
+    text-align: center;
+    font-size: 0.78rem;
+    color: #888;
+    margin-top: 0.5rem;
+  }
+  .majority-line strong { color: var(--text); }
+
+  /* Hemicycle */
+  .hemicycle-wrap {
+    text-align: center;
+    margin: 0.8rem 0;
+  }
+  .hemicycle-wrap svg { max-width: 100%; height: auto; }
+
+  /* TPP bar */
+  .tpp-bar-wrap { margin: 0.8rem 0; }
+  .tpp-bar {
+    height: 28px;
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex;
+    position: relative;
+    background: #e0e0e0;
+  }
+  .tpp-bar .bar-alp { background: var(--alp); transition: width 0.15s; }
+  .tpp-bar .bar-lnp { background: var(--lnp); transition: width 0.15s; }
+  .tpp-bar-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+    color: #666;
+  }
+
+  /* Seat table */
+  .table-card {
+    background: var(--card);
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  .table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.2rem 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .table-header h2 { margin-bottom: 0; }
+  .table-filter {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+  .filter-btn {
+    padding: 0.3rem 0.7rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .filter-btn:hover { background: #f0f0f0; }
+  .filter-btn.active { background: #333; color: #fff; border-color: #333; }
+  .table-scroll {
+    overflow-x: auto;
+    max-height: 600px;
+    overflow-y: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  thead th {
+    position: sticky;
+    top: 0;
+    background: #f8f8f8;
+    padding: 0.5rem 0.7rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #666;
+    border-bottom: 2px solid #eee;
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+    z-index: 2;
+  }
+  thead th:hover { color: #333; }
+  thead th.sort-active { color: #111; }
+  thead th.sort-active::after { content: ' \u25B2'; font-size: 0.6rem; }
+  thead th.sort-active.sort-desc::after { content: ' \u25BC'; }
+  tbody tr { border-bottom: 1px solid #f0f0f0; transition: background 0.1s; }
+  tbody tr:hover { background: #f9f9fb; }
+  tbody tr.flip-row { background: #f0f0f5; }
+  tbody tr.flip-row:hover { background: #e8e8f0; }
+  td { padding: 0.45rem 0.7rem; white-space: nowrap; }
+  .party-badge {
+    display: inline-block;
+    padding: 0.15rem 0.45rem;
+    border-radius: 3px;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 600;
+    min-width: 36px;
+    text-align: center;
+  }
+  .party-ALP { background: var(--alp); }
+  .party-LNP, .party-LIB, .party-NAT { background: var(--lnp); }
+  .party-GRN { background: var(--grn); }
+  .party-IND { background: var(--ind); }
+  .party-ON { background: var(--onp); }
+  .primary-bar {
+    display: flex;
+    height: 18px;
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 0.3rem 0;
+    font-size: 0;
+  }
+  .primary-bar span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    min-width: 0;
+  }
+  .pb-alp { background: var(--alp); }
+  .pb-lnp { background: var(--lnp); }
+  .pb-grn { background: var(--grn); }
+  .pb-on { background: var(--onp); }
+  .pb-oth { background: var(--ind); }
+  .pb-ind { background: #009688; }
+  .tpp-bar-detail {
+    display: flex;
+    height: 20px;
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 0.3rem 0;
+  }
+  .tpp-bar-detail span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  .flip-indicator { font-weight: 700; font-size: 0.9rem; }
+  .flip-indicator.gain-alp { color: var(--alp); }
+  .flip-indicator.gain-coal { color: var(--lnp); }
+  .flip-indicator.gain-grn { color: var(--grn); }
+  .flip-indicator.gain-on { color: var(--onp); }
+  .flip-indicator.gain-oth { color: var(--ind); }
+
+  /* Seat detail (expandable) */
+  tbody tr.seat-row { cursor: pointer; }
+  tbody tr.detail-row { display: none; }
+  tbody tr.detail-row.open { display: table-row; }
+  tbody tr.detail-row td {
+    padding: 0;
+    white-space: normal;
+    background: #f9fafb;
+    border-bottom: 2px solid #e0e0e0;
+  }
+  tbody tr.flip-row.detail-row td { background: #ededf2; }
+  .seat-detail {
+    padding: 0.7rem 1rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem 1.5rem;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    color: #444;
+  }
+  @media (max-width: 600px) {
+    .seat-detail { grid-template-columns: 1fr; }
+  }
+  .seat-detail .detail-label { color: #888; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  .seat-detail .detail-value { font-weight: 600; }
+  .seat-detail .detail-calc {
+    grid-column: 1 / -1;
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 5px;
+    padding: 0.5rem 0.7rem;
+    font-family: 'SF Mono', 'Consolas', monospace;
+    font-size: 0.75rem;
+    color: #555;
+    margin-top: 0.2rem;
+  }
+  .seat-detail .detail-flip {
+    grid-column: 1 / -1;
+    font-weight: 700;
+    font-size: 0.82rem;
+    padding: 0.3rem 0.5rem;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .seat-detail .detail-flip.gain-alp { background: #ffebee; color: var(--alp); }
+  .seat-detail .detail-flip.gain-coal { background: #e3f2fd; color: var(--lnp); }
+  .seat-detail .detail-flip.gain-grn { background: #e8f5e9; color: var(--grn); }
+  .seat-detail .detail-flip.gain-on { background: #fff3e0; color: var(--onp); }
+  .seat-detail .detail-flip.gain-oth { background: #f5f5f5; color: var(--ind); }
+
+  /* Methodology */
+  details {
+    background: var(--card);
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  summary {
+    padding: 1rem 1.2rem;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  details[open] summary { border-bottom: 1px solid #eee; }
+  .method-content {
+    padding: 1rem 1.2rem;
+    font-size: 0.82rem;
+    line-height: 1.7;
+    color: #555;
+  }
+  .method-content p { margin-bottom: 0.6rem; }
+  .method-content code { background: #f0f0f0; padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.78rem; }
+
+  /* Tooltip */
+  .tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: rgba(0,0,0,0.85);
+    color: #fff;
+    padding: 0.4rem 0.6rem;
+    border-radius: 5px;
+    font-size: 0.78rem;
+    z-index: 100;
+    display: none;
+    max-width: 220px;
+    line-height: 1.4;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>2026 Victorian State Election Swing Simulator</h1>
+  <p>Uniform swing model &middot; 88 seats &middot; Based on 2022 election results</p>
+  <p style="font-size:0.75rem;opacity:0.5;margin-top:0.2rem">Built on the model from <a href="https://aeforecasts.com" style="color:#90caf9">aeforecasts.com</a></p>
+</header>
+
+<div class="main">
+  <div class="panel-left">
+    <div class="card">
+      <h2>Primary Votes</h2>
+      <div class="slider-row slider-alp">
+        <button class="lock-btn" data-party="alp" title="Lock this slider">&#x1f512;</button>
+        <span class="slider-label" style="color:var(--alp)">ALP</span>
+        <div class="slider-wrap"><input type="range" id="sl-alp" min="0" max="60" step="1" value="37"></div>
+        <span class="slider-val" id="sv-alp">37%</span>
+      </div>
+      <div class="slider-row slider-coal">
+        <button class="lock-btn" data-party="coal" title="Lock this slider">&#x1f512;</button>
+        <span class="slider-label" style="color:var(--lnp)">Coal</span>
+        <div class="slider-wrap"><input type="range" id="sl-coal" min="0" max="60" step="1" value="34"></div>
+        <span class="slider-val" id="sv-coal">34%</span>
+      </div>
+      <div class="slider-row slider-grn">
+        <button class="lock-btn" data-party="grn" title="Lock this slider">&#x1f512;</button>
+        <span class="slider-label" style="color:var(--grn)">GRN</span>
+        <div class="slider-wrap"><input type="range" id="sl-grn" min="0" max="60" step="1" value="11"></div>
+        <span class="slider-val" id="sv-grn">11%</span>
+      </div>
+      <div class="slider-row slider-onp">
+        <button class="lock-btn" data-party="onp" title="Lock this slider">&#x1f512;</button>
+        <span class="slider-label" style="color:var(--onp)">ON</span>
+        <div class="slider-wrap"><input type="range" id="sl-onp" min="0" max="60" step="1" value="4"></div>
+        <span class="slider-val" id="sv-onp">4%</span>
+      </div>
+      <div class="slider-row slider-oth">
+        <button class="lock-btn" data-party="oth" title="Lock this slider">&#x1f512;</button>
+        <span class="slider-label" style="color:var(--ind)">OTH</span>
+        <div class="slider-wrap"><input type="range" id="sl-oth" min="0" max="60" step="1" value="14"></div>
+        <span class="slider-val" id="sv-oth">14%</span>
+      </div>
+      <div class="total-row" id="total-row">
+        <span>Total</span>
+        <span class="total-val" id="total-val">100%</span>
+      </div>
+      <div class="slider-hint">Click the lock icon to freeze a party's vote share. Unlocked sliders auto-adjust to keep the total at 100%.</div>
+      <button class="btn-reset" id="btn-reset">Reset to 2022 result</button>
+      <button class="btn-reset" id="btn-polls" style="margin-left:0.4rem">Current polls</button>
+    </div>
+  </div>
+
+  <div class="panel-right">
+    <div class="card">
+      <div class="tpp-display">
+        <div class="tpp-stat">
+          <div class="label">ALP 2PP</div>
+          <div class="value alp" id="tpp-alp">&mdash;</div>
+        </div>
+        <div class="tpp-stat">
+          <div class="label">Coalition 2PP</div>
+          <div class="value lnp" id="tpp-lnp">&mdash;</div>
+        </div>
+        <div class="tpp-stat">
+          <div class="label">Swing (2PP)</div>
+          <div class="value swing-zero" id="tpp-swing">+0.0%</div>
+        </div>
+      </div>
+      <div class="tpp-bar-wrap">
+        <div class="tpp-bar">
+          <div class="bar-alp" id="bar-alp" style="width:55%"></div>
+          <div class="bar-lnp" id="bar-lnp" style="width:45%"></div>
+        </div>
+        <div class="tpp-bar-labels">
+          <span>ALP</span>
+          <span>Coalition</span>
+        </div>
+      </div>
+      <div class="hemicycle-wrap" id="hemicycle-wrap"></div>
+      <div class="seat-counts" id="seat-counts"></div>
+      <div class="majority-line" id="majority-line"></div>
+    </div>
+
+    <div class="card" style="margin-top:1rem">
+      <h2>Preference Assumptions</h2>
+      <div class="pref-grid">
+        <div class="pref-group pref-onp">
+          <div class="pref-title">One Nation preferences<br>(ON &rarr; ALP rate)</div>
+          <label class="pref-option benefits-coal">
+            <input type="radio" name="onpref" value="15">
+            <div><strong>15% to ALP</strong><br><span class="pref-desc">Pro-Coalition deal</span></div>
+          </label>
+          <label class="pref-option">
+            <input type="radio" name="onpref" value="25.5" checked>
+            <div><strong>25.5% to ALP</strong><br><span class="pref-desc">Standard federal flows</span></div>
+          </label>
+          <label class="pref-option benefits-alp">
+            <input type="radio" name="onpref" value="35">
+            <div><strong>35% to ALP</strong><br><span class="pref-desc">More moderate ON voters</span></div>
+          </label>
+        </div>
+        <div class="pref-group pref-coal" style="background:#e3f2fd;border-left-color:var(--lnp)">
+          <div class="pref-title" style="color:#0d47a1">Coalition preferences<br>(when ON vs ALP)</div>
+          <label class="pref-option benefits-alp">
+            <input type="radio" name="coalpref" value="40">
+            <div><strong>40% to ON</strong><br><span class="pref-desc">Weak (prefer ALP over ON)</span></div>
+          </label>
+          <label class="pref-option">
+            <input type="radio" name="coalpref" value="60" checked>
+            <div><strong>60% to ON</strong><br><span class="pref-desc">Standard (prefer ON over ALP)</span></div>
+          </label>
+          <label class="pref-option benefits-on">
+            <input type="radio" name="coalpref" value="80">
+            <div><strong>80% to ON</strong><br><span class="pref-desc">Strong (informal coalition)</span></div>
+          </label>
+        </div>
+        <div class="pref-group pref-alp" style="background:#ffebee;border-left-color:var(--alp)">
+          <div class="pref-title" style="color:#b71c1c">ALP preferences<br>(when ON vs Coal)</div>
+          <label class="pref-option benefits-on">
+            <input type="radio" name="alppref" value="30">
+            <div><strong>30% to ON</strong><br><span class="pref-desc">Weak (punish ON)</span></div>
+          </label>
+          <label class="pref-option">
+            <input type="radio" name="alppref" value="45" checked>
+            <div><strong>45% to ON</strong><br><span class="pref-desc">Standard (modest return)</span></div>
+          </label>
+          <label class="pref-option benefits-alp">
+            <input type="radio" name="alppref" value="60">
+            <div><strong>60% to ON</strong><br><span class="pref-desc">Strong (protest voters prefer ON)</span></div>
+          </label>
+        </div>
+        <div class="pref-group pref-oth">
+          <div class="pref-title">Other preferences<br>(OTH &rarr; ALP rate)</div>
+          <label class="pref-option benefits-coal">
+            <input type="radio" name="othpref" value="42">
+            <div><strong>42% to ALP</strong><br><span class="pref-desc">Benefits Coalition</span></div>
+          </label>
+          <label class="pref-option">
+            <input type="radio" name="othpref" value="49" checked>
+            <div><strong>49% to ALP</strong><br><span class="pref-desc">2022 result (default)</span></div>
+          </label>
+          <label class="pref-option benefits-alp">
+            <input type="radio" name="othpref" value="56">
+            <div><strong>56% to ALP</strong><br><span class="pref-desc">Benefits ALP</span></div>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-card" style="margin-top:1rem">
+      <div class="table-header">
+        <h2>Seat-by-Seat Results</h2>
+        <div class="table-filter" id="table-filter">
+          <button class="filter-btn active" data-filter="all">All</button>
+          <button class="filter-btn" data-filter="flips">Flips</button>
+          <button class="filter-btn" data-filter="marginal">Marginal</button>
+          <button class="filter-btn" data-filter="metro">Metro</button>
+          <button class="filter-btn" data-filter="regional">Regional</button>
+          <span style="color:#bbb;margin:0 0.2rem">|</span>
+          <button class="filter-btn" data-filter="inc-ALP" style="border-left:3px solid var(--alp)">Inc:ALP</button>
+          <button class="filter-btn" data-filter="inc-Coal" style="border-left:3px solid var(--lnp)">Inc:Coal</button>
+          <button class="filter-btn" data-filter="inc-GRN" style="border-left:3px solid var(--grn)">Inc:GRN</button>
+          <button class="filter-btn" data-filter="inc-Other" style="border-left:3px solid var(--ind)">Inc:Other</button>
+          <span style="color:#bbb;margin:0 0.2rem">|</span>
+          <button class="filter-btn" data-filter="win-ALP" style="border-left:3px solid var(--alp)">Win:ALP</button>
+          <button class="filter-btn" data-filter="win-Coal" style="border-left:3px solid var(--lnp)">Win:Coal</button>
+          <button class="filter-btn" data-filter="win-GRN" style="border-left:3px solid var(--grn)">Win:GRN</button>
+          <button class="filter-btn" data-filter="win-ON" style="border-left:3px solid var(--onp)">Win:ON</button>
+          <button class="filter-btn" data-filter="win-Other" style="border-left:3px solid var(--ind)">Win:Other</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th data-sort="name">Seat</th>
+              <th data-sort="region">Region</th>
+              <th data-sort="incumbent">Incumbent</th>
+              <th data-sort="tppMargin">2022 Margin</th>
+              <th data-sort="newMargin">New Margin</th>
+              <th data-sort="winner">Winner</th>
+              <th data-sort="change">Change</th>
+            </tr>
+          </thead>
+          <tbody id="seat-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <details style="margin-top:1rem">
+      <summary>Methodology &amp; Assumptions</summary>
+      <div class="method-content">
+        <p><strong>Uniform swing model:</strong> This simulator applies a single statewide two-party-preferred (2PP) swing uniformly to all 88 Victorian Legislative Assembly seats, with seat-level adjustments and regional swing deviations. Swings are applied in logit-transformed space.</p>
+        <p><strong>2PP calculation:</strong> From primary votes, minor party preferences are distributed using estimated preference flows: Greens &rarr; ALP at <code>81.94%</code>, One Nation &rarr; ALP at <code>25.5%</code> (adjustable), Others &rarr; ALP at <code>49.25%</code>. A calibration offset is applied so that the 2022 baseline primary votes produce exactly 2PP 54.74%.</p>
+        <p><strong>Baseline:</strong> ALP ~37%, Coalition ~34%, GRN ~11%, ON ~4%, OTH ~14% producing 2PP 54.74% ALP from the 2022 Victorian state election.</p>
+        <p><strong>Logit transform:</strong> The model uses a scaled logit transform <code>log(p/(1-p)) &times; 25</code> so that 1 unit &asymp; 1 percentage point near 50%. This naturally compresses large swings in safe seats.</p>
+        <p><strong>Regional swing deviations:</strong> Seats are grouped into four regional categories (Inner Metro, Outer Metro, Provincial, Rural) with different swing deviations applied to account for differential swing patterns observed historically in Victorian elections.</p>
+        <p><strong>Seat-level adjustments</strong> (from regression model):</p>
+        <ul style="margin:0.3rem 0 0.6rem 1.5rem">
+          <li><strong>Retirement effect:</strong> Seats where the sitting member is retiring receive a <code>-1.0%</code> penalty (direction-adjusted).</li>
+          <li><strong>Sophomore candidate effect:</strong> First-term MPs seeking re-election receive a boost: urban <code>+1.5%</code>, regional <code>+1.0%</code> (direction-adjusted).</li>
+          <li><strong>Sophomore party effect:</strong> Parties that won a seat for the first time last election receive an additional boost of <code>+0.5%</code> (direction-adjusted).</li>
+          <li><strong>Previous swing regression:</strong> Seats that swung more than their regional average last election partially revert: coefficient <code>-0.126</code> applied to the deviation from regional average.</li>
+          <li><strong>Transposed federal swing:</strong> A scaled factor (<code>0.15</code>) of transposed federal swing is applied to each seat.</li>
+          <li>Local effects are normalised by subtracting the regional average local effect, ensuring they don't shift overall regional totals.</li>
+        </ul>
+        <p><strong>Seat types:</strong> ALP vs Coalition seats (83 seats) receive the full uniform swing. GRN vs ALP seats (Brunswick, Melbourne, Richmond) receive a dampened swing (30% factor). The Prahran seat (LNP vs GRN) also receives a dampened swing (30%). South-West Coast (LNP vs IND crossbench) receives the full swing.</p>
+        <p><strong>5-party preferential model:</strong> For ALP vs Coalition seats, seat-level primary votes are estimated using regional baseline estimates for Greens and One Nation, plus national vote shares. A step-by-step preferential elimination from 5 candidates (ALP, Coalition, GRN, ON, OTH) down to 2 is simulated, eliminating the lowest candidate each round and redistributing their votes. If One Nation reaches the final two, the elimination result overrides the TPP-based winner.</p>
+        <p><strong>Positive margin</strong> = ALP-favourable (or incumbent-favourable for crossbench/Green seats).</p>
+        <p><strong>Slider constraints:</strong> Primary votes must sum to 100%. Moving one slider proportionally adjusts all other unlocked sliders. Lock a slider to freeze its value.</p>
+      </div>
+    </details>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// === SEAT DATA (parsed from 2026vic.txt) ===
+const SEATS = [
+  {name:"Albert Park",incumbent:"ALP",challenger:"LNP",region:"Inner Melbourne",tppMargin:11.2,previousSwing:-1.9,fedSwing:0.0,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Ashwood",incumbent:"ALP",challenger:"LNP",region:"Inner East Melbourne",tppMargin:6.2,previousSwing:4.2,fedSwing:-1.0,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Bass",incumbent:"ALP",challenger:"LNP",region:"Gippsland",tppMargin:0.2,previousSwing:0.9,fedSwing:2.7,retirement:true,sophCandidate:false,sophParty:false},
+  {name:"Bayswater",incumbent:"ALP",challenger:"LNP",region:"Outer East Melbourne",tppMargin:4.2,previousSwing:4.8,fedSwing:2.1,retirement:true,sophCandidate:false,sophParty:false},
+  {name:"Bellarine",incumbent:"ALP",challenger:"LNP",region:"Geelong",tppMargin:8.5,previousSwing:-3.0,fedSwing:-0.8,retirement:false,sophCandidate:true,sophParty:false},
+  {name:"Benambra",incumbent:"LNP",challenger:"ALP",region:"Rural North & East",tppMargin:-13.3,previousSwing:-4.0,fedSwing:-2.9,retirement:true,sophCandidate:false,sophParty:false},
+  {name:"Bendigo East",incumbent:"ALP",challenger:"LNP",region:"Ballarat & Bendigo",tppMargin:10.8,previousSwing:-1.3,fedSwing:-11.3,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Bendigo West",incumbent:"ALP",challenger:"LNP",region:"Ballarat & Bendigo",tppMargin:14.6,previousSwing:-4.0,fedSwing:-11.3,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Bentleigh",incumbent:"ALP",challenger:"LNP",region:"Southern Melbourne",tppMargin:8.0,previousSwing:-3.4,fedSwing:-0.1,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Berwick",incumbent:"LNP",challenger:"ALP",region:"South East Melbourne",tppMargin:-4.7,previousSwing:-3.4,fedSwing:7.5,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Box Hill",incumbent:"ALP",challenger:"LNP",region:"Inner East Melbourne",tppMargin:7.2,previousSwing:4.1,fedSwing:1.9,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Brighton",incumbent:"LNP",challenger:"ALP",region:"Inner East Melbourne",tppMargin:-5.1,previousSwing:-4.6,fedSwing:-1.4,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Broadmeadows",incumbent:"ALP",challenger:"LNP",region:"Northern Melbourne",tppMargin:15.5,previousSwing:-0.7,fedSwing:2.4,retirement:false,sophCandidate:true,sophParty:false},
+  {name:"Brunswick",incumbent:"GRN",challenger:"ALP",region:"Inner Melbourne",tppMargin:34.1,previousSwing:0.5,fedSwing:2.3,retirement:true,sophCandidate:false,sophParty:false},
+  {name:"Bulleen",incumbent:"LNP",challenger:"ALP",region:"Inner East Melbourne",tppMargin:-5.9,previousSwing:-0.4,fedSwing:-1.9,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Bundoora",incumbent:"ALP",challenger:"LNP",region:"Northern Melbourne",tppMargin:12.7,previousSwing:-3.6,fedSwing:-1.7,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Carrum",incumbent:"ALP",challenger:"LNP",region:"Southern Melbourne",tppMargin:9.8,previousSwing:-2.2,fedSwing:-0.7,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Caulfield",incumbent:"LNP",challenger:"ALP",region:"Inner East Melbourne",tppMargin:-2.1,previousSwing:-2.0,fedSwing:-3.5,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Clarinda",incumbent:"ALP",challenger:"LNP",region:"South East Melbourne",tppMargin:10.2,previousSwing:-4.7,fedSwing:2.1,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Cranbourne",incumbent:"ALP",challenger:"LNP",region:"South East Melbourne",tppMargin:9.0,previousSwing:-0.3,fedSwing:6.7,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Croydon",incumbent:"LNP",challenger:"ALP",region:"Outer East Melbourne",tppMargin:-1.4,previousSwing:-0.4,fedSwing:1.8,retirement:true,sophCandidate:false,sophParty:false},
+  {name:"Dandenong",incumbent:"ALP",challenger:"LNP",region:"South East Melbourne",tppMargin:18.3,previousSwing:-4.8,fedSwing:6.9,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Eildon",incumbent:"LNP",challenger:"ALP",region:"Rural North & East",tppMargin:-7.0,previousSwing:-5.9,fedSwing:-3.6,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Eltham",incumbent:"ALP",challenger:"LNP",region:"Northern Melbourne",tppMargin:9.0,previousSwing:-1.5,fedSwing:1.6,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Essendon",incumbent:"ALP",challenger:"LNP",region:"Middle NW Melbourne",tppMargin:12.5,previousSwing:-3.4,fedSwing:0.8,retirement:true,sophCandidate:false,sophParty:false},
+  {name:"Eureka",incumbent:"ALP",challenger:"LNP",region:"Ballarat & Bendigo",tppMargin:7.2,previousSwing:-2.4,fedSwing:-2.1,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Euroa",incumbent:"NAT",challenger:"ALP",region:"Rural North & East",tppMargin:-9.9,previousSwing:5.4,fedSwing:-3.7,retirement:false,sophCandidate:true,sophParty:false},
+  {name:"Evelyn",incumbent:"LNP",challenger:"ALP",region:"Outer East Melbourne",tppMargin:-5.4,previousSwing:-3.6,fedSwing:-3.9,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Footscray",incumbent:"ALP",challenger:"LNP",region:"Middle NW Melbourne",tppMargin:25.7,previousSwing:-3.0,fedSwing:3.9,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Frankston",incumbent:"ALP",challenger:"LNP",region:"Southern Melbourne",tppMargin:8.7,previousSwing:-1.5,fedSwing:-0.9,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Geelong",incumbent:"ALP",challenger:"LNP",region:"Geelong",tppMargin:14.7,previousSwing:4.4,fedSwing:-1.8,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Gippsland East",incumbent:"NAT",challenger:"ALP",region:"Gippsland",tppMargin:-24.6,previousSwing:-7.0,fedSwing:-0.2,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Gippsland South",incumbent:"NAT",challenger:"ALP",region:"Gippsland",tppMargin:-15.6,previousSwing:-1.6,fedSwing:-0.1,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Glen Waverley",incumbent:"ALP",challenger:"LNP",region:"Outer East Melbourne",tppMargin:3.3,previousSwing:4.2,fedSwing:1.9,retirement:false,sophCandidate:true,sophParty:true},
+  {name:"Greenvale",incumbent:"ALP",challenger:"LNP",region:"Northern Melbourne",tppMargin:7.1,previousSwing:-14.9,fedSwing:2.0,retirement:false,sophCandidate:true,sophParty:false},
+  {name:"Hastings",incumbent:"ALP",challenger:"LNP",region:"Mornington Peninsula",tppMargin:1.4,previousSwing:1.3,fedSwing:0.6,retirement:false,sophCandidate:true,sophParty:true},
+  {name:"Hawthorn",incumbent:"LNP",challenger:"ALP",region:"Inner East Melbourne",tppMargin:-1.7,previousSwing:-2.3,fedSwing:0.8,retirement:false,sophCandidate:true,sophParty:true},
+  {name:"Ivanhoe",incumbent:"ALP",challenger:"LNP",region:"Middle NW Melbourne",tppMargin:12.8,previousSwing:0.4,fedSwing:0.1,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Kalkallo",incumbent:"ALP",challenger:"LNP",region:"Northern Melbourne",tppMargin:16.5,previousSwing:-4.4,fedSwing:1.5,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Kew",incumbent:"LNP",challenger:"ALP",region:"Inner East Melbourne",tppMargin:-4.0,previousSwing:0.7,fedSwing:0.1,retirement:false,sophCandidate:true,sophParty:false},
+  {name:"Kororoit",incumbent:"ALP",challenger:"LNP",region:"Western Melbourne",tppMargin:14.5,previousSwing:-10.8,fedSwing:0.8,retirement:false,sophCandidate:true,sophParty:false},
+  {name:"Lara",incumbent:"ALP",challenger:"LNP",region:"Geelong",tppMargin:15.9,previousSwing:-3.3,fedSwing:-0.4,retirement:false,sophCandidate:true,sophParty:false},
+  {name:"Laverton",incumbent:"ALP",challenger:"LNP",region:"Western Melbourne",tppMargin:18.4,previousSwing:-5.0,fedSwing:4.3,retirement:false,sophCandidate:true,sophParty:false},
+  {name:"Lowan",incumbent:"NAT",challenger:"ALP",region:"Rural Outer West",tppMargin:-21.6,previousSwing:-0.5,fedSwing:-3.3,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Macedon",incumbent:"ALP",challenger:"LNP",region:"Ballarat & Bendigo",tppMargin:9.5,previousSwing:-3.8,fedSwing:-1.3,retirement:true,sophCandidate:false,sophParty:false},
+  {name:"Malvern",incumbent:"LNP",challenger:"ALP",region:"Inner East Melbourne",tppMargin:-8.1,previousSwing:-2.0,fedSwing:-0.7,retirement:true,sophCandidate:false,sophParty:false},
+  {name:"Melbourne",incumbent:"GRN",challenger:"ALP",region:"Inner Melbourne",tppMargin:25.0,previousSwing:0.6,fedSwing:0.3,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Melton",incumbent:"ALP",challenger:"LNP",region:"Western Melbourne",tppMargin:4.6,previousSwing:-0.4,fedSwing:-1.9,retirement:true,sophCandidate:false,sophParty:false},
+  {name:"Mildura",incumbent:"NAT",challenger:"ALP",region:"Rural Outer West",tppMargin:-14.1,previousSwing:-8.0,fedSwing:0.1,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Mill Park",incumbent:"ALP",challenger:"LNP",region:"Northern Melbourne",tppMargin:11.6,previousSwing:-13.3,fedSwing:-2.0,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Monbulk",incumbent:"ALP",challenger:"LNP",region:"Outer East Melbourne",tppMargin:7.6,previousSwing:0.5,fedSwing:-0.5,retirement:false,sophCandidate:true,sophParty:false},
+  {name:"Mordialloc",incumbent:"ALP",challenger:"LNP",region:"Southern Melbourne",tppMargin:8.2,previousSwing:-5.2,fedSwing:2.4,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Mornington",incumbent:"LNP",challenger:"ALP",region:"Mornington Peninsula",tppMargin:-8.28,previousSwing:-3.28,fedSwing:0.8,retirement:false,sophCandidate:true,sophParty:false},
+  {name:"Morwell",incumbent:"NAT",challenger:"ALP",region:"Gippsland",tppMargin:-4.4,previousSwing:-8.4,fedSwing:0.8,retirement:false,sophCandidate:true,sophParty:true},
+  {name:"Mulgrave",incumbent:"ALP",challenger:"LNP",region:"South East Melbourne",tppMargin:10.2,previousSwing:-5.53,fedSwing:5.2,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Murray Plains",incumbent:"NAT",challenger:"ALP",region:"Rural North & East",tppMargin:-23.4,previousSwing:0.5,fedSwing:-3.0,retirement:true,sophCandidate:false,sophParty:false},
+  {name:"Narracan",incumbent:"LNP",challenger:"ALP",region:"Gippsland",tppMargin:-13.0,previousSwing:-3.0,fedSwing:1.7,retirement:false,sophCandidate:true,sophParty:false},
+  {name:"Narre Warren North",incumbent:"ALP",challenger:"LNP",region:"South East Melbourne",tppMargin:8.7,previousSwing:-1.7,fedSwing:10.8,retirement:false,sophCandidate:true,sophParty:false},
+  {name:"Narre Warren South",incumbent:"ALP",challenger:"LNP",region:"South East Melbourne",tppMargin:8.3,previousSwing:-2.1,fedSwing:6.7,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Nepean",incumbent:"ALP",challenger:"LNP",region:"Mornington Peninsula",tppMargin:-6.4,previousSwing:-7.1,fedSwing:1.0,retirement:true,sophCandidate:false,sophParty:true},
+  {name:"Niddrie",incumbent:"ALP",challenger:"LNP",region:"Western Melbourne",tppMargin:6.7,previousSwing:-5.8,fedSwing:0.0,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Northcote",incumbent:"ALP",challenger:"LNP",region:"Inner Melbourne",tppMargin:31.7,previousSwing:-1.5,fedSwing:1.3,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Oakleigh",incumbent:"ALP",challenger:"LNP",region:"South East Melbourne",tppMargin:13.5,previousSwing:-2.6,fedSwing:0.5,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Ovens Valley",incumbent:"NAT",challenger:"ALP",region:"Rural North & East",tppMargin:-17.8,previousSwing:-5.7,fedSwing:-3.1,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Pakenham",incumbent:"ALP",challenger:"LNP",region:"South East Melbourne",tppMargin:0.4,previousSwing:-1.8,fedSwing:3.6,retirement:true,sophCandidate:false,sophParty:false},
+  {name:"Pascoe Vale",incumbent:"ALP",challenger:"LNP",region:"Middle NW Melbourne",tppMargin:22.2,previousSwing:0.0,fedSwing:2.2,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Point Cook",incumbent:"ALP",challenger:"LNP",region:"Western Melbourne",tppMargin:8.3,previousSwing:-4.4,fedSwing:4.9,retirement:false,sophCandidate:true,sophParty:false},
+  {name:"Polwarth",incumbent:"LNP",challenger:"ALP",region:"Rural Outer West",tppMargin:-1.8,previousSwing:0.2,fedSwing:-3.6,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Prahran",incumbent:"LNP",challenger:"GRN",region:"Inner Melbourne",tppMargin:11.1,previousSwing:-13.4,fedSwing:-0.8,retirement:false,sophCandidate:true,sophParty:true},
+  {name:"Preston",incumbent:"ALP",challenger:"LNP",region:"Middle NW Melbourne",tppMargin:19.7,previousSwing:-8.6,fedSwing:1.3,retirement:false,sophCandidate:true,sophParty:false},
+  {name:"Richmond",incumbent:"GRN",challenger:"ALP",region:"Inner Melbourne",tppMargin:24.1,previousSwing:-7.1,fedSwing:-0.4,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Ringwood",incumbent:"ALP",challenger:"LNP",region:"Outer East Melbourne",tppMargin:7.5,previousSwing:4.3,fedSwing:1.4,retirement:true,sophCandidate:false,sophParty:false},
+  {name:"Ripon",incumbent:"ALP",challenger:"LNP",region:"Ballarat & Bendigo",tppMargin:3.0,previousSwing:0.2,fedSwing:-3.4,retirement:false,sophCandidate:true,sophParty:true},
+  {name:"Rowville",incumbent:"LNP",challenger:"ALP",region:"Outer East Melbourne",tppMargin:-3.7,previousSwing:1.8,fedSwing:3.8,retirement:true,sophCandidate:false,sophParty:false},
+  {name:"Sandringham",incumbent:"LNP",challenger:"ALP",region:"Inner East Melbourne",tppMargin:-5.0,previousSwing:-4.6,fedSwing:-1.1,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Shepparton",incumbent:"NAT",challenger:"ALP",region:"Rural North & East",tppMargin:-12.62,previousSwing:-12.62,fedSwing:-3.4,retirement:false,sophCandidate:true,sophParty:true},
+  {name:"South Barwon",incumbent:"ALP",challenger:"LNP",region:"Geelong",tppMargin:9.8,previousSwing:6.8,fedSwing:-0.4,retirement:true,sophCandidate:false,sophParty:false},
+  {name:"South-West Coast",incumbent:"LNP",challenger:"IND",region:"Rural Outer West",tppMargin:-8.0,previousSwing:-4.8,fedSwing:-3.8,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"St Albans",incumbent:"ALP",challenger:"LNP",region:"Western Melbourne",tppMargin:9.6,previousSwing:-12.4,fedSwing:3.1,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Sunbury",incumbent:"ALP",challenger:"LNP",region:"Northern Melbourne",tppMargin:6.4,previousSwing:-8.1,fedSwing:-0.9,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Sydenham",incumbent:"ALP",challenger:"LNP",region:"Western Melbourne",tppMargin:8.8,previousSwing:-8.9,fedSwing:-1.3,retirement:true,sophCandidate:false,sophParty:false},
+  {name:"Tarneit",incumbent:"ALP",challenger:"LNP",region:"Western Melbourne",tppMargin:12.3,previousSwing:-5.6,fedSwing:1.5,retirement:false,sophCandidate:true,sophParty:false},
+  {name:"Thomastown",incumbent:"ALP",challenger:"LNP",region:"Northern Melbourne",tppMargin:15.8,previousSwing:-11.6,fedSwing:-2.9,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Warrandyte",incumbent:"LNP",challenger:"ALP",region:"Outer East Melbourne",tppMargin:-4.3,previousSwing:-0.5,fedSwing:-0.9,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Wendouree",incumbent:"ALP",challenger:"LNP",region:"Ballarat & Bendigo",tppMargin:11.9,previousSwing:0.9,fedSwing:-4.0,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Werribee",incumbent:"ALP",challenger:"LNP",region:"Western Melbourne",tppMargin:10.9,previousSwing:-10.1,fedSwing:-2.4,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Williamstown",incumbent:"ALP",challenger:"LNP",region:"Western Melbourne",tppMargin:13.4,previousSwing:-6.5,fedSwing:2.2,retirement:false,sophCandidate:false,sophParty:false},
+  {name:"Yan Yean",incumbent:"ALP",challenger:"LNP",region:"Northern Melbourne",tppMargin:4.3,previousSwing:-12.7,fedSwing:0.1,retirement:false,sophCandidate:true,sophParty:false}
+];
+
+// === CONSTANTS ===
+const BASELINE = { alp: 37, coal: 34, grn: 11, onp: 4, oth: 14 };
+const BASELINE_TPP = 54.74;
+const CURRENT_POLLS = { alp: 23, coal: 27, grn: 11, onp: 25, oth: 14 };
+const PREF = { grn_alp: 0.8194, onp_alp: 0.255, oth_alp: 0.4925, coal_on: 0.60, alp_on: 0.45 };
+const COALITION = ['LIB', 'LNP', 'NAT'];
+
+// Seat classification
+const GRN_VS_ALP_SEATS = ['Brunswick', 'Melbourne', 'Richmond'];
+const LNP_VS_GRN_SEAT = 'Prahran';
+const LNP_VS_IND_SEAT = 'South-West Coast';
+
+// Regional swing groups and deviations
+const REGION_SWING_GROUP = {
+  'Inner Melbourne': 'innerMetro',
+  'Inner East Melbourne': 'outerMetro',
+  'Middle NW Melbourne': 'outerMetro',
+  'Northern Melbourne': 'outerMetro',
+  'Outer East Melbourne': 'outerMetro',
+  'Western Melbourne': 'outerMetro',
+  'Southern Melbourne': 'outerMetro',
+  'South East Melbourne': 'outerMetro',
+  'Mornington Peninsula': 'outerMetro',
+  'Geelong': 'provincial',
+  'Ballarat & Bendigo': 'provincial',
+  'Gippsland': 'rural',
+  'Rural North & East': 'rural',
+  'Rural Outer West': 'rural'
+};
+const SWING_DEVS = {
+  innerMetro: -0.127,
+  outerMetro: -0.469,
+  provincial: 0.373,
+  rural: 0.862
+};
+
+// Region GRN estimates for Sankey primary estimation
+const REGION_GRN_BASE = {
+  'Inner Melbourne': 28, 'Inner East Melbourne': 12,
+  'Middle NW Melbourne': 14, 'Northern Melbourne': 10,
+  'Outer East Melbourne': 8, 'Western Melbourne': 8,
+  'Southern Melbourne': 7, 'South East Melbourne': 6,
+  'Mornington Peninsula': 7, 'Geelong': 10,
+  'Ballarat & Bendigo': 9, 'Gippsland': 5,
+  'Rural North & East': 4, 'Rural Outer West': 5
+};
+const GRN_REF = 11;
+const REGION_ON_BASE = {
+  'Inner Melbourne': 1.5, 'Inner East Melbourne': 2.5,
+  'Middle NW Melbourne': 3, 'Northern Melbourne': 4,
+  'Outer East Melbourne': 4, 'Western Melbourne': 5,
+  'Southern Melbourne': 5, 'South East Melbourne': 5.5,
+  'Mornington Peninsula': 4.5, 'Geelong': 4.5,
+  'Ballarat & Bendigo': 4, 'Gippsland': 6,
+  'Rural North & East': 5.5, 'Rural Outer West': 5.5
+};
+const ON_REF = 4;
+const OTH_SEAT_FACTOR = 0.4;
+
+// Urban vs Regional classification
+const URBAN_REGIONS = new Set([
+  'Inner Melbourne', 'Inner East Melbourne', 'Middle NW Melbourne',
+  'Northern Melbourne', 'Outer East Melbourne', 'Western Melbourne',
+  'Southern Melbourne', 'South East Melbourne'
+]);
+const REGIONAL_REGIONS = new Set([
+  'Mornington Peninsula', 'Geelong', 'Ballarat & Bendigo',
+  'Gippsland', 'Rural North & East', 'Rural Outer West'
+]);
+const METRO_REGIONS = new Set([...URBAN_REGIONS]);
+
+// Sophomore and retirement coefficients
+const RETIREMENT_EFFECT = -1.0;
+const SOPH_CAND_COEFF = { urban: 1.5, regional: 1.0 };
+const SOPH_PARTY_COEFF = 0.5;
+const PREV_SWING_MOD = -0.126;
+const FED_SWING_FACTOR = 0.15;
+
+// === LOGIT TRANSFORM (matching C++ model: scaled by 25) ===
+function transformVS(pct) {
+  const p = Math.max(0.01, Math.min(99.99, pct)) * 0.01;
+  return Math.log(p / (1.0 - p)) * 25.0;
+}
+function detransformVS(t) {
+  return 100.0 / (1.0 + Math.exp(-0.04 * t));
+}
+
+// Calibration: compute the raw TPP from baseline and store the offset
+const _baseAlpPrefs = BASELINE.grn * PREF.grn_alp + BASELINE.onp * PREF.onp_alp + BASELINE.oth * PREF.oth_alp;
+const _baseLnpPrefs = BASELINE.grn * (1 - PREF.grn_alp) + BASELINE.onp * (1 - PREF.onp_alp) + BASELINE.oth * (1 - PREF.oth_alp);
+const _rawBaselineTPP = (BASELINE.alp + _baseAlpPrefs) / (BASELINE.alp + BASELINE.coal + _baseAlpPrefs + _baseLnpPrefs) * 100;
+const TPP_CALIBRATION_OFFSET = BASELINE_TPP - _rawBaselineTPP;
+
+// === PRE-COMPUTE REGIONAL AVERAGES ===
+const _regionPrevSwing = {};
+SEATS.forEach(s => {
+  if (!_regionPrevSwing[s.region]) _regionPrevSwing[s.region] = { sum: 0, n: 0 };
+  _regionPrevSwing[s.region].sum += s.previousSwing;
+  _regionPrevSwing[s.region].n++;
+});
+const REGION_AVG_PREV_SWING = {};
+Object.keys(_regionPrevSwing).forEach(r => {
+  REGION_AVG_PREV_SWING[r] = _regionPrevSwing[r].sum / _regionPrevSwing[r].n;
+});
+
+// Pre-compute local effects per seat
+const _localEffects = {};
+const _regionLocalSum = {};
+const _regionLocalCount = {};
+SEATS.forEach(s => {
+  const isMajor = s.incumbent === 'ALP' || COALITION.includes(s.incumbent);
+  const isRegional = REGIONAL_REGIONS.has(s.region);
+  // Direction: ALP incumbent -> +1; Coalition incumbent -> -1
+  const direction = COALITION.includes(s.incumbent) ? -1 : 1;
+  let effect = 0;
+
+  if (isMajor) {
+    // Retirement effect
+    if (s.retirement) {
+      effect += RETIREMENT_EFFECT * direction;
+    }
+    // Sophomore candidate effect
+    if (s.sophCandidate) {
+      effect += (isRegional ? SOPH_CAND_COEFF.regional : SOPH_CAND_COEFF.urban) * direction;
+    }
+    // Sophomore party effect
+    if (s.sophParty) {
+      effect += SOPH_PARTY_COEFF * direction;
+    }
+  }
+
+  // Transposed federal swing (scaled by factor)
+  effect += s.fedSwing * FED_SWING_FACTOR;
+
+  _localEffects[s.name] = effect;
+  if (!_regionLocalSum[s.region]) { _regionLocalSum[s.region] = 0; _regionLocalCount[s.region] = 0; }
+  _regionLocalSum[s.region] += effect;
+  _regionLocalCount[s.region]++;
+});
+const REGION_LOCAL_AVG = {};
+Object.keys(_regionLocalSum).forEach(r => {
+  REGION_LOCAL_AVG[r] = _regionLocalSum[r] / _regionLocalCount[r];
+});
+
+// Pre-compute previous swing deviations from regional average
+const _prevSwingDev = {};
+SEATS.forEach(s => {
+  _prevSwingDev[s.name] = s.previousSwing - REGION_AVG_PREV_SWING[s.region];
+});
+
+const PARTY_COLORS = {
+  ALP: '#E53935', LNP: '#1565C0', LIB: '#1565C0', NAT: '#1565C0',
+  GRN: '#43A047', IND: '#808080', ON: '#F57C00'
+};
+
+// === ELEMENTS ===
+const sliders = {
+  alp: document.getElementById('sl-alp'),
+  coal: document.getElementById('sl-coal'),
+  grn: document.getElementById('sl-grn'),
+  onp: document.getElementById('sl-onp'),
+  oth: document.getElementById('sl-oth')
+};
+const valEls = {
+  alp: document.getElementById('sv-alp'),
+  coal: document.getElementById('sv-coal'),
+  grn: document.getElementById('sv-grn'),
+  onp: document.getElementById('sv-onp'),
+  oth: document.getElementById('sv-oth')
+};
+
+let currentFilter = 'all';
+let sortCol = 'newMargin';
+let sortAsc = true;
+const _openSeats = new Set();
+const lockedSliders = new Set();
+
+// === SLIDER LOCK LOGIC ===
+document.querySelectorAll('.lock-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const party = btn.dataset.party;
+    if (lockedSliders.has(party)) {
+      lockedSliders.delete(party);
+      btn.classList.remove('locked');
+      sliders[party].classList.remove('locked-slider');
+    } else {
+      if (lockedSliders.size >= 4) return; // Don't allow locking all 5
+      lockedSliders.add(party);
+      btn.classList.add('locked');
+      sliders[party].classList.add('locked-slider');
+    }
+  });
+});
+
+// === SLIDER LOGIC ===
+function getValues() {
+  return {
+    alp: parseFloat(sliders.alp.value),
+    coal: parseFloat(sliders.coal.value),
+    grn: parseFloat(sliders.grn.value),
+    onp: parseFloat(sliders.onp.value),
+    oth: parseFloat(sliders.oth.value)
+  };
+}
+
+function setValues(vals) {
+  Object.keys(vals).forEach(k => {
+    sliders[k].value = Math.round(vals[k]);
+  });
+}
+
+function constrainSliders(changedKey) {
+  const vals = getValues();
+  const total = Object.values(vals).reduce((a, b) => a + b, 0);
+  const diff = total - 100;
+
+  if (Math.abs(diff) < 0.5) return;
+
+  const adjustable = Object.keys(vals).filter(k => k !== changedKey && !lockedSliders.has(k));
+  if (adjustable.length === 0) return;
+
+  const adjustableSum = adjustable.reduce((a, k) => a + vals[k], 0);
+
+  if (adjustableSum <= 0 && diff > 0) {
+    vals[changedKey] = Math.max(0, vals[changedKey] - diff);
+  } else {
+    adjustable.forEach(k => {
+      const proportion = adjustableSum > 0 ? vals[k] / adjustableSum : 1 / adjustable.length;
+      vals[k] = Math.max(0, vals[k] - diff * proportion);
+      vals[k] = Math.round(vals[k]);
+    });
+  }
+
+  const newTotal = Object.values(vals).reduce((a, b) => a + b, 0);
+  const residual = newTotal - 100;
+  if (Math.abs(residual) > 0.1 && adjustable.length > 0) {
+    const largest = adjustable.reduce((a, b) => vals[a] >= vals[b] ? a : b);
+    vals[largest] = Math.max(0, Math.round(vals[largest] - residual));
+  }
+
+  setValues(vals);
+}
+
+function updateDisplay() {
+  const v = getValues();
+  Object.keys(v).forEach(k => {
+    valEls[k].textContent = Math.round(v[k]) + '%';
+  });
+  const total = Object.values(v).reduce((a, b) => a + b, 0);
+  document.getElementById('total-val').textContent = Math.round(total) + '%';
+}
+
+// === TPP + SWING ===
+function calcTPP(v) {
+  const alpFromPrefs = v.grn * PREF.grn_alp + v.onp * PREF.onp_alp + v.oth * PREF.oth_alp;
+  const lnpFromPrefs = v.grn * (1 - PREF.grn_alp) + v.onp * (1 - PREF.onp_alp) + v.oth * (1 - PREF.oth_alp);
+  const rawTPP = (v.alp + alpFromPrefs) / (v.alp + v.coal + alpFromPrefs + lnpFromPrefs) * 100;
+  return rawTPP + TPP_CALIBRATION_OFFSET;
+}
+
+function calcSwing(alpTPP) {
+  return alpTPP - BASELINE_TPP;
+}
+
+// Preference flow helper for 4-candidate elimination
+function _getPrefFlow(eliminated, remaining) {
+  const coalOn = PREF.coal_on;   // fraction of coal prefs going to ON (vs ALP)
+  const alpOn = PREF.alp_on;     // fraction of alp prefs going to ON (vs Coal)
+  const base = {
+    oth: { alp: 0.30, coal: 0.25, grn: 0.15, on: 0.30 },
+    grn: { alp: PREF.grn_alp, coal: 1 - PREF.grn_alp, on: 0, oth: 0 },
+    on:  { alp: PREF.onp_alp, coal: 1 - PREF.onp_alp, grn: 0, oth: 0 },
+    alp: { coal: 0.55 * (1 - alpOn), grn: 0.18, on: 0.55 * alpOn, oth: 0.10 },
+    coal:{ alp: 0.55 * (1 - coalOn), grn: 0.15, on: 0.55 * coalOn, oth: 0.30 },
+    ind: { alp: 0.55, coal: 0.30, grn: 0.05, on: 0.05, oth: 0.05 }
+  }[eliminated] || {};
+  let total = 0;
+  const result = {};
+  for (const p of remaining) { result[p] = base[p] || 0; total += result[p]; }
+  if (total > 0) for (const p of remaining) result[p] /= total;
+  return result;
+}
+
+// === SEAT OUTCOMES (logit-space model) ===
+function calcSeatOutcomes(swing, vals) {
+  const baseLogit = transformVS(BASELINE_TPP);
+  const newLogit = transformVS(BASELINE_TPP + swing);
+  const logitSwing = newLogit - baseLogit;
+
+  return SEATS.map(seat => {
+    const s = { ...seat };
+    const inc = s.incumbent;
+    const chal = s.challenger;
+    const isGRNvsALP = GRN_VS_ALP_SEATS.includes(s.name);
+    const isLNPvsGRN = s.name === LNP_VS_GRN_SEAT;
+    const isLNPvsIND = s.name === LNP_VS_IND_SEAT;
+
+    // Determine swing direction and factor for this seat type
+    let swingFactor;
+    if (isGRNvsALP) {
+      swingFactor = 0.3;
+      s.seatType = 'GRN vs ALP';
+    } else if (isLNPvsGRN) {
+      swingFactor = 0.3;
+      s.seatType = 'LNP vs GRN';
+    } else if (isLNPvsIND) {
+      swingFactor = 1;
+      s.seatType = 'LNP vs IND';
+    } else {
+      swingFactor = 1;
+      s.seatType = 'ALP vs Coalition';
+    }
+
+    // Start with seat's current TPP in logit space
+    const seatTPP = 50 + s.tppMargin;
+    let transformed = transformVS(seatTPP);
+
+    // Apply national swing in logit space
+    transformed += logitSwing * swingFactor;
+
+    // Apply regional swing deviation
+    const regionGroup = REGION_SWING_GROUP[s.region];
+    const regionDev = SWING_DEVS[regionGroup] || 0;
+    transformed += regionDev;
+
+    // Apply local effects (sophomore, retirement, federal swing adjustments), normalized by regional average
+    const localEffect = _localEffects[s.name] - REGION_LOCAL_AVG[s.region];
+    transformed += localEffect;
+
+    // Apply previous swing regression to mean
+    const prevSwingEffect = _prevSwingDev[s.name] * PREV_SWING_MOD;
+    transformed += prevSwingEffect;
+
+    // Convert back to percentage
+    const newSeatTPP = detransformVS(transformed);
+    s.newMargin = Math.round((newSeatTPP - 50) * 100) / 100;
+    s.swingApplied = swing;
+
+    // Store adjustment details for display
+    s.localEffect = localEffect;
+    s.rawLocalEffect = _localEffects[s.name];
+    s.prevSwingEffect = prevSwingEffect;
+    s.prevSwingDev = _prevSwingDev[s.name];
+    s.regionDev = regionDev;
+    const swingOnlyTPP = detransformVS(transformVS(seatTPP) + logitSwing * swingFactor);
+    s.swingMarginEffect = (swingOnlyTPP - 50) - s.tppMargin;
+
+    // Build explanation string
+    const fmtSign = v => (v >= 0 ? '+' : '') + v.toFixed(2);
+    s.swingExplain = `Base: ${fmtSign(s.tppMargin)}% | Swing: ${fmtSign(s.swingMarginEffect)}% | ` +
+      `Region: ${fmtSign(regionDev)}% | Local: ${fmtSign(localEffect)}% | Prev swing: ${fmtSign(prevSwingEffect)}% | ` +
+      `Final: ${fmtSign(s.newMargin)}%`;
+
+    // Determine winner
+    if (isGRNvsALP) {
+      s.winner = s.newMargin > 0 ? inc : chal; // positive = GRN holds
+    } else if (isLNPvsGRN) {
+      s.winner = s.newMargin > 0 ? inc : chal; // positive = LNP holds (but swing reversal since anti-Coal swing)
+    } else if (isLNPvsIND) {
+      s.winner = s.newMargin > 0 ? inc : chal; // positive = LNP holds
+    } else {
+      // ALP vs Coalition
+      if (s.newMargin > 0) {
+        s.winner = 'ALP';
+      } else {
+        s.winner = COALITION.includes(inc) ? inc : chal;
+      }
+    }
+
+    // Determine original winner
+    if (isGRNvsALP || isLNPvsGRN || isLNPvsIND) {
+      s.origWinner = s.tppMargin > 0 ? inc : chal;
+    } else {
+      s.origWinner = s.tppMargin > 0 ? 'ALP' : (COALITION.includes(inc) ? inc : chal);
+    }
+
+    s.flipped = s.winner !== s.origWinner;
+
+    // === PRIMARY MODEL: 5-candidate elimination for ALP vs Coalition seats ===
+    const isMajorVsMajor = s.seatType === 'ALP vs Coalition';
+
+    if (isMajorVsMajor && vals) {
+      const grnSeat = Math.min(50, vals.grn * (REGION_GRN_BASE[s.region] / GRN_REF));
+      const onSeat = Math.min(50, vals.onp * (REGION_ON_BASE[s.region] / ON_REF));
+      const othSeat = vals.oth * OTH_SEAT_FACTOR;
+      const postSwingTPP = 50 + s.newMargin;
+      const alpFP = Math.max(0, postSwingTPP - grnSeat * PREF.grn_alp - onSeat * PREF.onp_alp - othSeat * PREF.oth_alp);
+      const coalFP = Math.max(0, 100 - alpFP - grnSeat - onSeat - othSeat);
+      const coalParty = COALITION.includes(s.incumbent) ? s.incumbent : s.challenger;
+
+      s.estPrimaries = { alp: alpFP, coal: coalFP, grn: grnSeat, on: onSeat, oth: othSeat };
+
+      // Step-by-step preferential elimination (5->4->3->2)
+      const cands = { alp: alpFP, coal: coalFP, grn: grnSeat, on: onSeat, oth: othSeat };
+      const elimSteps = [];
+
+      while (Object.keys(cands).length > 2) {
+        let minP = null, minV = Infinity;
+        for (const [p, v] of Object.entries(cands)) {
+          if (v < minV) { minV = v; minP = p; }
+        }
+        const remaining = Object.keys(cands).filter(p => p !== minP);
+        const flow = _getPrefFlow(minP, remaining);
+        const transfers = {};
+        for (const p of remaining) transfers[p] = +(minV * flow[p]).toFixed(2);
+        delete cands[minP];
+        for (const p of remaining) cands[p] += transfers[p];
+        elimSteps.push({ eliminated: minP, votes: minV, transfers, after: { ...cands } });
+      }
+
+      s.elimSteps = elimSteps;
+      s.coalParty = coalParty;
+
+      // If ON or GRN reaches the final 2, override winner from elimination result
+      const finalTwo = Object.keys(elimSteps[elimSteps.length - 1].after);
+      const keyToParty = k => {
+        if (k === 'alp') return 'ALP';
+        if (k === 'coal') return coalParty;
+        if (k === 'on') return 'ON';
+        if (k === 'grn') return 'GRN';
+        return 'IND';
+      };
+      if (finalTwo.includes('on') || finalTwo.includes('grn')) {
+        const lastAfter = elimSteps[elimSteps.length - 1].after;
+        const [p1, p2] = finalTwo;
+        const v1 = lastAfter[p1], v2 = lastAfter[p2];
+        const winKey = v1 >= v2 ? p1 : p2;
+        const otherKey = winKey === p1 ? p2 : p1;
+        s.winner = keyToParty(winKey);
+        s.flipped = s.winner !== s.origWinner;
+        if (finalTwo.includes('on')) {
+          s.seatType = finalTwo.includes('alp') ? 'ON vs ALP' : finalTwo.includes('coal') ? 'ON vs Coal' : 'ON vs ' + keyToParty(otherKey);
+          s.onContest = { on2pp: lastAfter.on || 0, other2pp: lastAfter[otherKey] || 0, otherParty: keyToParty(otherKey) };
+        } else if (finalTwo.includes('grn')) {
+          s.seatType = finalTwo.includes('alp') ? 'GRN vs ALP' : finalTwo.includes('coal') ? 'GRN vs Coal' : 'GRN vs ' + keyToParty(otherKey);
+          s.grnContest = { grn2pp: lastAfter.grn || 0, other2pp: lastAfter[otherKey] || 0, otherParty: keyToParty(otherKey) };
+        }
+      }
+    }
+
+    // === CROSSBENCH PRIMARY MODEL for South-West Coast (LNP vs IND) ===
+    if (isLNPvsIND && vals) {
+      const grnSeat = Math.min(50, vals.grn * (REGION_GRN_BASE[s.region] / GRN_REF));
+      const onSeat = Math.min(50, vals.onp * (REGION_ON_BASE[s.region] / ON_REF));
+      const othSeat = vals.oth * OTH_SEAT_FACTOR;
+      const postSwingTPP = 50 + s.newMargin;
+      const alpSeat = vals.alp * 0.30;
+      const indFP = Math.max(1, postSwingTPP - alpSeat * 0.55 - grnSeat * 0.30 - onSeat * 0.25 - othSeat * 0.40);
+      const coalFP = Math.max(1, 100 - indFP - alpSeat - grnSeat - onSeat - othSeat);
+      s.estPrimaries = { ind: indFP, alp: alpSeat, coal: coalFP, grn: grnSeat, on: onSeat, oth: othSeat };
+      s.xbenchParty = 'IND';
+      const cands = { ind: indFP, alp: alpSeat, coal: coalFP, grn: grnSeat, on: onSeat, oth: othSeat };
+      const elimSteps = [];
+      while (Object.keys(cands).length > 2) {
+        let minP = null, minV = Infinity;
+        for (const [p, v] of Object.entries(cands)) { if (v < minV) { minV = v; minP = p; } }
+        const remaining = Object.keys(cands).filter(p => p !== minP);
+        const flow = _getPrefFlow(minP, remaining);
+        const transfers = {};
+        for (const p of remaining) transfers[p] = +(minV * flow[p]).toFixed(2);
+        delete cands[minP];
+        for (const p of remaining) cands[p] += transfers[p];
+        elimSteps.push({ eliminated: minP, votes: minV, transfers, after: { ...cands } });
+      }
+      s.elimSteps = elimSteps;
+      s.coalParty = s.incumbent; // LNP
+
+      // Update winner from elimination result
+      const lastStep = s.elimSteps[s.elimSteps.length - 1];
+      const finalTwo = Object.keys(lastStep.after);
+      const [p1, p2] = finalTwo;
+      const v1 = lastStep.after[p1], v2 = lastStep.after[p2];
+      const winKey = v1 >= v2 ? p1 : p2;
+      const keyToParty = k => {
+        if (k === 'alp') return 'ALP';
+        if (k === 'coal') return s.incumbent;
+        if (k === 'grn') return 'GRN';
+        if (k === 'ind') return 'IND';
+        if (k === 'on') return 'ON';
+        return inc;
+      };
+      s.winner = keyToParty(winKey);
+      s.flipped = s.winner !== s.origWinner;
+
+      s.swingExplain = s.elimSteps.map((step, i) => {
+        const pn = step.eliminated === 'coal' ? s.coalParty : step.eliminated === 'ind' ? 'IND' : step.eliminated === 'on' ? 'ON' : step.eliminated.toUpperCase();
+        return `Rd${i+1}: ${pn} (${step.votes.toFixed(1)}%) elim`;
+      }).join(' \u2192 ') + ` \u2192 ${s.winner} wins`;
+    }
+
+    // === PRIMARY MODEL: GRN vs ALP and LNP vs GRN seats ===
+    if ((isGRNvsALP || isLNPvsGRN) && vals) {
+      const grnSeat = Math.min(50, vals.grn * (REGION_GRN_BASE[s.region] / GRN_REF));
+      const onSeat = Math.min(50, vals.onp * (REGION_ON_BASE[s.region] / ON_REF));
+      const othSeat = vals.oth * OTH_SEAT_FACTOR;
+      const postSwingTPP = 50 + s.newMargin;
+      // For GRN vs ALP: inc=GRN, chal=ALP; margin > 0 means GRN ahead
+      // For LNP vs GRN: inc=LNP, chal=GRN; margin > 0 means LNP ahead
+      const incFP = Math.max(1, postSwingTPP - grnSeat * 0.15 - onSeat * 0.10 - othSeat * 0.30);
+      const chalFP = Math.max(1, 100 - incFP - (isGRNvsALP ? 0 : grnSeat) - (isLNPvsGRN ? 0 : grnSeat) - onSeat - othSeat);
+      let cands;
+      if (isGRNvsALP) {
+        // GRN is incumbent, ALP is challenger; grn primary is from the seat estimate
+        const alpFP = Math.max(1, 100 - grnSeat - onSeat - othSeat - vals.coal * 0.15);
+        const coalFP = Math.max(1, vals.coal * 0.15);
+        cands = { grn: grnSeat, alp: alpFP, coal: coalFP, on: onSeat, oth: othSeat };
+        s.coalParty = 'LNP';
+      } else {
+        // LNP vs GRN (Prahran): LNP inc, GRN challenger
+        const alpFP = Math.max(1, vals.alp * 0.45);
+        const coalFP = Math.max(1, 100 - grnSeat - alpFP - onSeat - othSeat);
+        cands = { coal: coalFP, grn: grnSeat, alp: alpFP, on: onSeat, oth: othSeat };
+        s.coalParty = s.incumbent;
+      }
+      s.estPrimaries = { ...cands };
+      const elimSteps = [];
+      while (Object.keys(cands).length > 2) {
+        let minP = null, minV = Infinity;
+        for (const [p, v] of Object.entries(cands)) { if (v < minV) { minV = v; minP = p; } }
+        const remaining = Object.keys(cands).filter(p => p !== minP);
+        const flow = _getPrefFlow(minP, remaining);
+        const transfers = {};
+        for (const p of remaining) transfers[p] = +(minV * flow[p]).toFixed(2);
+        delete cands[minP];
+        for (const p of remaining) cands[p] += transfers[p];
+        elimSteps.push({ eliminated: minP, votes: minV, transfers, after: { ...cands } });
+      }
+      s.elimSteps = elimSteps;
+      // Determine winner from elimination
+      const lastAfter = elimSteps[elimSteps.length - 1].after;
+      const finalTwo = Object.keys(lastAfter);
+      const [p1, p2] = finalTwo;
+      const v1 = lastAfter[p1], v2 = lastAfter[p2];
+      const winKey = v1 >= v2 ? p1 : p2;
+      const keyToParty2 = k => {
+        if (k === 'alp') return 'ALP';
+        if (k === 'coal') return s.coalParty;
+        if (k === 'on') return 'ON';
+        if (k === 'grn') return 'GRN';
+        return 'IND';
+      };
+      s.winner = keyToParty2(winKey);
+      s.flipped = s.winner !== s.origWinner;
+      s.swingExplain = elimSteps.map((step, i) => {
+        const pn = step.eliminated === 'coal' ? s.coalParty : step.eliminated === 'on' ? 'ON' : step.eliminated.toUpperCase();
+        return `Rd${i+1}: ${pn} (${step.votes.toFixed(1)}%) elim`;
+      }).join(' \u2192 ') + ` \u2192 ${s.winner} wins`;
+    }
+
+    return s;
+  });
+}
+
+function countSeats(outcomes) {
+  const counts = { ALP: 0, Coal: 0, GRN: 0, ON: 0, Other: 0 };
+  outcomes.forEach(s => {
+    if (s.winner === 'ALP') counts.ALP++;
+    else if (COALITION.includes(s.winner)) counts.Coal++;
+    else if (s.winner === 'GRN') counts.GRN++;
+    else if (s.winner === 'ON') counts.ON++;
+    else counts.Other++;
+  });
+  return counts;
+}
+
+// === RENDER ===
+function renderTPP(alpTPP, swing) {
+  const lnpTPP = 100 - alpTPP;
+
+  document.getElementById('tpp-alp').textContent = alpTPP.toFixed(1) + '%';
+  document.getElementById('tpp-lnp').textContent = lnpTPP.toFixed(1) + '%';
+
+  const swingEl = document.getElementById('tpp-swing');
+  swingEl.textContent = (swing >= 0 ? '+' : '') + swing.toFixed(1) + '%';
+  swingEl.className = 'value ' + (swing > 0.05 ? 'swing-pos' : swing < -0.05 ? 'swing-neg' : 'swing-zero');
+
+  document.getElementById('bar-alp').style.width = Math.max(0, alpTPP) + '%';
+  document.getElementById('bar-lnp').style.width = Math.max(0, lnpTPP) + '%';
+}
+
+function renderSeatCounts(counts) {
+  const el = document.getElementById('seat-counts');
+  el.innerHTML = `
+    <div class="seat-count alp"><div class="sc-label">ALP</div>${counts.ALP}</div>
+    <div class="seat-count coal"><div class="sc-label">Coalition</div>${counts.Coal}</div>
+    <div class="seat-count grn"><div class="sc-label">GRN</div>${counts.GRN}</div>
+    <div class="seat-count onp"><div class="sc-label">ON</div>${counts.ON}</div>
+    <div class="seat-count oth"><div class="sc-label">Other</div>${counts.Other}</div>
+  `;
+  const majEl = document.getElementById('majority-line');
+  const needed = 45;
+  let govText = '';
+  if (counts.ALP >= needed) govText = 'ALP majority government';
+  else if (counts.Coal >= needed) govText = 'Coalition majority government';
+  else {
+    const biggest = counts.ALP >= counts.Coal ? 'ALP' : 'Coalition';
+    govText = `Hung parliament \u2014 ${biggest} largest party`;
+  }
+  majEl.innerHTML = `<strong>45</strong> seats needed for majority &middot; ${govText}`;
+}
+
+// === HEMICYCLE (88 seats, 5 rows: 14, 16, 18, 20, 20) ===
+function renderHemicycle(outcomes) {
+  const wrap = document.getElementById('hemicycle-wrap');
+  const W = 500, H = 280;
+  const cx = W / 2, cy = H - 20;
+
+  // Sort seats for hemicycle: ALP left, then GRN, IND, Coalition right
+  const sorted = [...outcomes].sort((a, b) => {
+    const order = s => {
+      if (s.winner === 'ALP') return 0;
+      if (s.winner === 'GRN') return 1;
+      if (s.winner === 'IND') return 2;
+      if (s.winner === 'ON') return 3;
+      if (COALITION.includes(s.winner)) return 4;
+      return 2.5;
+    };
+    const oa = order(a), ob = order(b);
+    if (oa !== ob) return oa - ob;
+    return b.newMargin - a.newMargin;
+  });
+
+  // 5 rows: 14, 16, 18, 20, 20 = 88
+  const rows = [14, 16, 18, 20, 20];
+  const nRows = rows.length;
+  const rMin = 90, rMax = 220;
+  const rStep = (rMax - rMin) / (nRows - 1);
+  const padAngle = 0.08;
+  const nCols = rows[nRows - 1]; // 20 = widest row
+
+  let dots = '';
+  let seatIdx = 0;
+
+  for (let col = 0; col < nCols; col++) {
+    for (let ri = 0; ri < nRows; ri++) {
+      const n = rows[ri];
+      const si = Math.round(col * (n - 1) / (nCols - 1));
+      const ownerCol = Math.round(si * (nCols - 1) / (n - 1));
+      if (ownerCol !== col) continue;
+
+      if (seatIdx >= sorted.length) break;
+      const seat = sorted[seatIdx];
+      const r = rMax - ri * rStep;
+      const angle = Math.PI - padAngle - (si / (n - 1)) * (Math.PI - 2 * padAngle);
+      const x = cx + r * Math.cos(angle);
+      const y = cy - r * Math.sin(angle);
+      const color = PARTY_COLORS[seat.winner] || '#808080';
+      const strokeColor = seat.flipped ? '#555' : 'none';
+      const strokeWidth = seat.flipped ? 2 : 0;
+      dots += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7" fill="${color}" stroke="${strokeColor}" stroke-width="${strokeWidth}" data-seat="${seatIdx}" class="hemi-dot"/>`;
+      seatIdx++;
+    }
+  }
+
+  wrap.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+    <line x1="${cx}" y1="${cy - rMin + 15}" x2="${cx}" y2="${cy - rMax - 10}" stroke="#999" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="${cx}" y="${cy - rMax - 14}" text-anchor="middle" font-size="11" fill="#999">45</text>
+    ${dots}
+  </svg>`;
+
+  // Tooltips + click to expand
+  const tooltip = document.getElementById('tooltip');
+  wrap.querySelectorAll('.hemi-dot').forEach(dot => {
+    dot.style.cursor = 'pointer';
+    dot.addEventListener('mouseenter', e => {
+      const idx = parseInt(dot.getAttribute('data-seat'));
+      const seat = sorted[idx];
+      tooltip.style.display = 'block';
+      tooltip.innerHTML = `<strong>${seat.name}</strong> (${seat.region})<br>
+        ${seat.winner} ${seat.flipped ? '(FLIP)' : ''}<br>
+        Margin: ${seat.newMargin > 0 ? '+' : ''}${seat.newMargin.toFixed(1)}%<br>
+        <em style="opacity:0.7">Click to see details</em>`;
+    });
+    dot.addEventListener('mousemove', e => {
+      tooltip.style.left = (e.clientX + 12) + 'px';
+      tooltip.style.top = (e.clientY - 10) + 'px';
+    });
+    dot.addEventListener('mouseleave', () => {
+      tooltip.style.display = 'none';
+    });
+    dot.addEventListener('click', () => {
+      const idx = parseInt(dot.getAttribute('data-seat'));
+      const seat = sorted[idx];
+      tooltip.style.display = 'none';
+      expandSeatInTable(seat.name);
+    });
+  });
+}
+
+// === SEAT TABLE ===
+function getWinnerGroup(winner) {
+  if (winner === 'ALP') return 'ALP';
+  if (COALITION.includes(winner)) return 'Coal';
+  if (winner === 'GRN') return 'GRN';
+  if (winner === 'ON') return 'ON';
+  return 'Other';
+}
+
+function renderTable(outcomes) {
+  let filtered = outcomes;
+  if (currentFilter === 'flips') filtered = outcomes.filter(s => s.flipped);
+  else if (currentFilter === 'marginal') filtered = outcomes.filter(s => Math.abs(s.newMargin) < 5);
+  else if (currentFilter === 'metro') filtered = outcomes.filter(s => METRO_REGIONS.has(s.region));
+  else if (currentFilter === 'regional') filtered = outcomes.filter(s => REGIONAL_REGIONS.has(s.region));
+  else if (currentFilter.startsWith('inc-')) {
+    const group = currentFilter.slice(4);
+    filtered = outcomes.filter(s => {
+      if (group === 'Coal') return COALITION.includes(s.incumbent);
+      if (group === 'Other') return !['ALP','GRN','ON'].includes(s.incumbent) && !COALITION.includes(s.incumbent);
+      return s.incumbent === group;
+    });
+  } else if (currentFilter.startsWith('win-')) {
+    const group = currentFilter.slice(4);
+    filtered = outcomes.filter(s => {
+      if (group === 'Coal') return COALITION.includes(s.winner);
+      if (group === 'ON') return s.winner === 'ON';
+      if (group === 'Other') return !['ALP','GRN','ON'].includes(s.winner) && !COALITION.includes(s.winner);
+      return s.winner === group;
+    });
+  }
+
+  // Sort
+  filtered.sort((a, b) => {
+    let va, vb;
+    switch (sortCol) {
+      case 'name': va = a.name; vb = b.name; break;
+      case 'region': va = a.region; vb = b.region; break;
+      case 'incumbent': va = a.incumbent; vb = b.incumbent; break;
+      case 'tppMargin': va = a.tppMargin; vb = b.tppMargin; break;
+      case 'newMargin': va = Math.abs(a.newMargin); vb = Math.abs(b.newMargin); break;
+      case 'winner': va = a.winner; vb = b.winner; break;
+      case 'change': va = a.flipped ? 0 : 1; vb = b.flipped ? 0 : 1; break;
+      default: va = Math.abs(a.newMargin); vb = Math.abs(b.newMargin);
+    }
+    if (typeof va === 'string') {
+      return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+    }
+    return sortAsc ? va - vb : vb - va;
+  });
+
+  // Update sort indicators
+  document.querySelectorAll('thead th').forEach(th => {
+    th.classList.remove('sort-active', 'sort-desc');
+    if (th.dataset.sort === sortCol) {
+      th.classList.add('sort-active');
+      if (!sortAsc) th.classList.add('sort-desc');
+    }
+  });
+
+  const tbody = document.getElementById('seat-tbody');
+  const marginStr = (m) => (m > 0 ? '+' : '') + m.toFixed(1) + '%';
+
+  tbody.innerHTML = filtered.map(s => {
+    const flipClass = s.flipped ? 'flip-row' : '';
+    let changeStr = '';
+    if (s.flipped) {
+      const group = getWinnerGroup(s.winner);
+      const cls = group === 'ALP' ? 'gain-alp' : group === 'Coal' ? 'gain-coal' : group === 'GRN' ? 'gain-grn' : group === 'ON' ? 'gain-on' : 'gain-oth';
+      changeStr = `<span class="flip-indicator ${cls}">\u2190 ${s.winner}</span>`;
+    }
+    const winnerParty = s.winner;
+
+    // Build detail content
+    let flipDetail = '';
+    if (s.flipped) {
+      const group = getWinnerGroup(s.winner);
+      const cls = group === 'ALP' ? 'gain-alp' : group === 'Coal' ? 'gain-coal' : group === 'GRN' ? 'gain-grn' : group === 'ON' ? 'gain-on' : 'gain-oth';
+      flipDetail = `<div class="detail-flip ${cls}">${s.origWinner} \u2192 ${s.winner} GAIN</div>`;
+    }
+
+    const isRegional = REGIONAL_REGIONS.has(s.region);
+    const classification = isRegional ? 'Regional' : 'Urban';
+    let flags = '';
+    if (s.retirement) flags += ' \u00b7 Retirement';
+    if (s.sophCandidate) flags += ' \u00b7 Soph. candidate';
+    if (s.sophParty) flags += ' \u00b7 Soph. party';
+
+    return `<tr class="seat-row ${flipClass}" data-seat-name="${s.name}">
+      <td><strong>${s.name}</strong></td>
+      <td>${s.region}</td>
+      <td><span class="party-badge party-${s.incumbent}">${s.incumbent}</span></td>
+      <td>${marginStr(s.tppMargin)}</td>
+      <td><strong>${marginStr(s.newMargin)}</strong></td>
+      <td><span class="party-badge party-${winnerParty}">${winnerParty}</span></td>
+      <td>${changeStr}</td>
+    </tr>
+    <tr class="detail-row ${flipClass}" data-detail-for="${s.name}">
+      <td colspan="7">
+        <div class="seat-detail">
+          <div><span class="detail-label">Contest type</span><br><span class="detail-value">${s.seatType}</span></div>
+          <div><span class="detail-label">2022 holder</span><br><span class="detail-value"><span class="party-badge party-${s.origWinner}">${s.origWinner}</span></span></div>
+          <div><span class="detail-label">2022 TPP margin</span><br><span class="detail-value">${marginStr(s.tppMargin)}</span></div>
+          <div><span class="detail-label">Classification</span><br><span class="detail-value">${classification}${flags}</span></div>
+          <div><span class="detail-label">Previous swing (2018\u21922022)</span><br><span class="detail-value">${s.previousSwing > 0 ? '+' : ''}${s.previousSwing.toFixed(1)}% (region avg: ${REGION_AVG_PREV_SWING[s.region]?REGION_AVG_PREV_SWING[s.region].toFixed(1):'?'}%)</span></div>
+          <div><span class="detail-label">Federal swing (transposed)</span><br><span class="detail-value">${s.fedSwing > 0 ? '+' : ''}${s.fedSwing.toFixed(1)}% (applied at ${(FED_SWING_FACTOR*100).toFixed(0)}%)</span></div>
+          <div><span class="detail-label">Region deviation</span><br><span class="detail-value">${s.regionDev >= 0 ? '+' : ''}${s.regionDev.toFixed(3)}%</span></div>
+          <div><span class="detail-label">Swing effect</span><br><span class="detail-value">${s.swingMarginEffect >= 0 ? '+' : ''}${s.swingMarginEffect.toFixed(2)}% (logit-space)</span></div>
+          ${s.estPrimaries ? (() => {
+            const ep = s.estPrimaries;
+            const cp = s.coalParty || (COALITION.includes(s.incumbent) ? s.incumbent : s.challenger);
+            const xbp = s.xbenchParty || '';
+            const hasInd = ep.ind !== undefined;
+            let barHTML = '<div class="primary-bar">';
+            if (hasInd) barHTML += `<span class="pb-ind" style="width:${ep.ind}%">${ep.ind>=5?ep.ind.toFixed(1):''}</span>`;
+            barHTML += `<span class="pb-alp" style="width:${ep.alp}%">${ep.alp>=5?ep.alp.toFixed(1):''}</span>`;
+            barHTML += `<span class="pb-lnp" style="width:${ep.coal}%">${ep.coal>=5?ep.coal.toFixed(1):''}</span>`;
+            barHTML += `<span class="pb-on" style="width:${ep.on||0}%">${(ep.on||0)>=5?(ep.on).toFixed(1):''}</span>`;
+            barHTML += `<span class="pb-grn" style="width:${ep.grn}%">${ep.grn>=5?ep.grn.toFixed(1):''}</span>`;
+            barHTML += `<span class="pb-oth" style="width:${ep.oth}%">${ep.oth>=3?ep.oth.toFixed(1):''}</span>`;
+            barHTML += '</div>';
+            let legendHTML = '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;font-size:0.7rem;margin-top:0.15rem">';
+            if (hasInd) legendHTML += `<span style="color:#009688">IND ${ep.ind.toFixed(1)}%</span>`;
+            legendHTML += `<span style="color:var(--alp)">ALP ${ep.alp.toFixed(1)}%</span>`;
+            legendHTML += `<span style="color:var(--lnp)">${cp} ${ep.coal.toFixed(1)}%</span>`;
+            if (ep.on > 0.1) legendHTML += `<span style="color:var(--onp)">ON ${ep.on.toFixed(1)}%</span>`;
+            legendHTML += `<span style="color:var(--grn)">GRN ${ep.grn.toFixed(1)}%</span>`;
+            legendHTML += `<span style="color:var(--ind)">OTH ${ep.oth.toFixed(1)}%</span>`;
+            legendHTML += '</div>';
+            return `<div style="grid-column:1/-1"><span class="detail-label">Estimated primaries</span>${barHTML}${legendHTML}</div>`;
+          })() : ''}
+          ${buildSeatSankey(s)}
+          ${s.elimSteps ? (() => {
+            const cp = s.coalParty || (COALITION.includes(s.incumbent) ? s.incumbent : s.challenger);
+            const xbp = s.xbenchParty || 'IND';
+            const pLabel = (k) => k === 'coal' ? cp : k === 'ind' ? xbp : k === 'on' ? 'ON' : k.toUpperCase();
+            const pCls = (k) => k === 'coal' ? 'lnp' : k === 'ind' ? 'ind' : k === 'on' ? 'onp' : k;
+            return '<div style="grid-column:1/-1"><span class="detail-label">Preferential count</span>' +
+              '<table style="width:100%;font-size:0.7rem;border-collapse:collapse;margin:0.3rem 0">' +
+              '<tr style="border-bottom:1px solid #ccc;font-weight:600;text-align:left">' +
+              '<td style="padding:0.2rem 0.4rem">Round</td><td style="padding:0.2rem 0.4rem">Eliminated</td>' +
+              '<td style="padding:0.2rem 0.4rem">Votes</td><td style="padding:0.2rem 0.4rem">Running totals (sorted)</td></tr>' +
+              s.elimSteps.map((step, i) => {
+                const sorted = Object.entries(step.after).sort((a,b) => b[1] - a[1]);
+                const totals = sorted.map(([p,v]) =>
+                  '<span style="color:var(--' + pCls(p) + ')">' + pLabel(p) + ' ' + v.toFixed(1) + '%</span>'
+                ).join(' &middot; ');
+                const gap = sorted.length >= 2 ? (sorted[sorted.length-2][1] - sorted[sorted.length-1][1]).toFixed(1) : '';
+                const gapStr = sorted.length >= 2 && sorted.length > 1 ? ' <span style="color:#999;font-size:0.6rem">(gap: ' + gap + '%)</span>' : '';
+                return '<tr style="border-bottom:1px solid #eee">' +
+                  '<td style="padding:0.2rem 0.4rem">' + (i+1) + '</td>' +
+                  '<td style="padding:0.2rem 0.4rem"><span class="party-badge party-' + pLabel(step.eliminated) + '">' + pLabel(step.eliminated) + '</span> ' + step.votes.toFixed(1) + '%</td>' +
+                  '<td style="padding:0.2rem 0.4rem;font-size:0.6rem">' + Object.entries(step.transfers).map(([p,v]) => '+' + v.toFixed(1) + ' ' + pLabel(p)).join(', ') + '</td>' +
+                  '<td style="padding:0.2rem 0.4rem">' + totals + gapStr + '</td></tr>';
+              }).join('') +
+              '</table></div>';
+          })() : ''}
+          ${(() => {
+            const partyToCls = p => p === 'ALP' ? 'alp' : COALITION.includes(p) ? 'lnp' : p === 'GRN' ? 'grn' : p === 'ON' ? 'on' : 'oth';
+            if (s.onContest) {
+              const p1 = 'ON', p2 = s.onContest.otherParty;
+              const v1 = s.onContest.on2pp.toFixed(1), v2 = s.onContest.other2pp.toFixed(1);
+              return '<div style="grid-column:1/-1"><span class="detail-label">Predicted final two</span>' +
+                '<div class="tpp-bar-detail">' +
+                  '<span class="pb-on" style="width:' + v1 + '%">ON ' + v1 + '%</span>' +
+                  '<span class="pb-' + partyToCls(p2) + '" style="width:' + v2 + '%">' + p2 + ' ' + v2 + '%</span>' +
+                '</div></div>';
+            }
+            if (s.grnContest) {
+              const p1 = 'GRN', p2 = s.grnContest.otherParty;
+              const v1 = s.grnContest.grn2pp.toFixed(1), v2 = s.grnContest.other2pp.toFixed(1);
+              return '<div style="grid-column:1/-1"><span class="detail-label">Predicted final two</span>' +
+                '<div class="tpp-bar-detail">' +
+                  '<span class="pb-grn" style="width:' + v1 + '%">GRN ' + v1 + '%</span>' +
+                  '<span class="pb-' + partyToCls(p2) + '" style="width:' + v2 + '%">' + p2 + ' ' + v2 + '%</span>' +
+                '</div></div>';
+            }
+            const inc = s.incumbent, chal = s.challenger;
+            const incTPP = (50 + s.newMargin).toFixed(1);
+            const chalTPP = (50 - s.newMargin).toFixed(1);
+            return '<div style="grid-column:1/-1"><span class="detail-label">Predicted 2PP</span>' +
+              '<div class="tpp-bar-detail">' +
+                '<span class="pb-' + partyToCls(inc) + '" style="width:' + incTPP + '%">' + inc + ' ' + incTPP + '%</span>' +
+                '<span class="pb-' + partyToCls(chal) + '" style="width:' + chalTPP + '%">' + chal + ' ' + chalTPP + '%</span>' +
+              '</div></div>';
+          })()}
+          <div class="detail-calc"><strong>Calculation:</strong> ${s.swingExplain}</div>
+          ${flipDetail}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Click to expand/collapse detail rows
+  tbody.querySelectorAll('.seat-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const name = row.dataset.seatName;
+      const detail = tbody.querySelector(`tr[data-detail-for="${name}"]`);
+      if (detail) {
+        detail.classList.toggle('open');
+        if (detail.classList.contains('open')) {
+          _openSeats.add(name);
+        } else {
+          _openSeats.delete(name);
+        }
+      }
+    });
+  });
+
+  // Re-open previously expanded seats
+  _openSeats.forEach(name => {
+    const detail = tbody.querySelector(`tr[data-detail-for="${name}"]`);
+    if (detail) detail.classList.add('open');
+  });
+}
+
+// Scroll to and expand a seat in the table by name
+function expandSeatInTable(seatName) {
+  let row = document.querySelector(`tr.seat-row[data-seat-name="${CSS.escape(seatName)}"]`);
+  if (!row && currentFilter !== 'all') {
+    currentFilter = 'all';
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.filter-btn[data-filter="all"]').classList.add('active');
+    const sv = getValues();
+    const outcomes = calcSeatOutcomes(calcSwing(calcTPP(sv)), sv);
+    renderTable(outcomes);
+    row = document.querySelector(`tr.seat-row[data-seat-name="${CSS.escape(seatName)}"]`);
+  }
+  if (!row) return;
+  document.querySelectorAll('tr.detail-row.open').forEach(d => {
+    d.classList.remove('open');
+    _openSeats.delete(d.dataset.detailFor);
+  });
+  const detail = document.querySelector(`tr[data-detail-for="${CSS.escape(seatName)}"]`);
+  if (detail) {
+    detail.classList.add('open');
+    _openSeats.add(seatName);
+  }
+  row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  row.style.outline = '2px solid #888';
+  setTimeout(() => { row.style.outline = ''; }, 1500);
+}
+
+// === PER-SEAT SANKEY (multi-round elimination flow) ===
+function buildSeatSankey(s) {
+  if (!s.estPrimaries || !s.elimSteps || s.elimSteps.length === 0) return '';
+
+  const cp = s.coalParty || (COALITION.includes(s.incumbent) ? s.incumbent : s.challenger);
+  const xbp = s.xbenchParty || 'IND';
+  const pLabel = k => {
+    if (k === 'coal') return cp;
+    if (k === 'ind') return xbp;
+    if (k === 'on') return 'ON';
+    return k.toUpperCase();
+  };
+  const pColor = { alp: '#E53935', coal: '#1565C0', grn: '#43A047', on: '#F57C00', oth: '#808080', ind: '#009688' };
+  const partyOrder = { ind: -1, alp: 0, coal: 1, on: 2, grn: 3, oth: 4 };
+
+  // Build stages: stage 0 = initial primaries, then one stage per elimination round
+  const stage0 = { ...s.estPrimaries };
+  const stages = [stage0];
+  s.elimSteps.forEach(step => stages.push({ ...step.after }));
+  const nStages = stages.length;
+  const nParties = Object.keys(stage0).length;
+
+  const W = 700, H = 180;
+  const topPad = 22, bottomPad = 8;
+  const usableH = H - topPad - bottomPad;
+  const nodeW = 14, nodeGap = 3;
+
+  const leftMargin = 58, rightMargin = 58;
+  const stageSpacing = (W - leftMargin - rightMargin - nodeW) / (nStages - 1);
+  const stageX = stages.map((_, i) => leftMargin + i * stageSpacing);
+
+  const totalVotes = Object.values(stage0).reduce((a, b) => a + b, 0) || 100;
+  const scale = usableH / (totalVotes + nodeGap * (nParties - 1));
+
+  const stageLayouts = stages.map(stage => {
+    const entries = Object.entries(stage)
+      .sort((a, b) => (partyOrder[a[0]] ?? 5) - (partyOrder[b[0]] ?? 5));
+    let yOff = topPad;
+    return entries.map(([key, votes]) => {
+      const h = Math.max(2, votes * scale);
+      const bar = { key, votes, y: yOff, h };
+      yOff += h + nodeGap;
+      return bar;
+    });
+  });
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+
+  // Draw flows between consecutive stages
+  for (let si = 0; si < nStages - 1; si++) {
+    const step = s.elimSteps[si];
+    const srcBars = stageLayouts[si];
+    const dstBars = stageLayouts[si + 1];
+    const x0 = stageX[si] + nodeW;
+    const x1 = stageX[si + 1];
+    const cx0 = x0 + (x1 - x0) * 0.35;
+    const cx1 = x1 - (x1 - x0) * 0.35;
+
+    const srcOff = {}; srcBars.forEach(b => { srcOff[b.key] = 0; });
+    const dstOff = {}; dstBars.forEach(b => { dstOff[b.key] = 0; });
+
+    // Surviving party self-flows
+    srcBars.filter(b => b.key !== step.eliminated).forEach(srcBar => {
+      const dstBar = dstBars.find(b => b.key === srcBar.key);
+      if (!dstBar) return;
+      const thickness = Math.max(1, srcBar.votes * scale);
+      const srcY = srcBar.y + srcOff[srcBar.key] + thickness / 2;
+      const dstY = dstBar.y + dstOff[dstBar.key] + thickness / 2;
+      srcOff[srcBar.key] += thickness;
+      dstOff[dstBar.key] += thickness;
+      svg += `<path d="M${x0},${srcY.toFixed(1)} C${cx0.toFixed(1)},${srcY.toFixed(1)} ${cx1.toFixed(1)},${dstY.toFixed(1)} ${x1},${dstY.toFixed(1)}" stroke="${pColor[srcBar.key]}" stroke-opacity="0.22" stroke-width="${thickness.toFixed(1)}" fill="none"><title>${pLabel(srcBar.key)} ${srcBar.votes.toFixed(1)}% carries through</title></path>`;
+    });
+
+    // Eliminated party's flows to recipients
+    const elimBar = srcBars.find(b => b.key === step.eliminated);
+    if (elimBar) {
+      Object.entries(step.transfers).forEach(([toKey, amount]) => {
+        if (amount < 0.01) return;
+        const dstBar = dstBars.find(b => b.key === toKey);
+        if (!dstBar) return;
+        const thickness = Math.max(0.5, amount * scale);
+        const srcY = elimBar.y + srcOff[step.eliminated] + thickness / 2;
+        const dstY = dstBar.y + dstOff[toKey] + thickness / 2;
+        srcOff[step.eliminated] += thickness;
+        dstOff[toKey] += thickness;
+        svg += `<path d="M${x0},${srcY.toFixed(1)} C${cx0.toFixed(1)},${srcY.toFixed(1)} ${cx1.toFixed(1)},${dstY.toFixed(1)} ${x1},${dstY.toFixed(1)}" stroke="${pColor[step.eliminated]}" stroke-opacity="0.5" stroke-width="${thickness.toFixed(1)}" fill="none"><title>${pLabel(step.eliminated)} \u2192 ${pLabel(toKey)}: ${amount.toFixed(1)}%</title></path>`;
+      });
+    }
+  }
+
+  // Draw bars and labels
+  stageLayouts.forEach((bars, si) => {
+    const x = stageX[si];
+    const stageLabel = si === 0 ? 'Primary' : si === nStages - 1 ? 'Final' : 'Rd ' + si;
+    bars.forEach(b => {
+      svg += `<rect x="${x}" y="${b.y.toFixed(1)}" width="${nodeW}" height="${b.h.toFixed(1)}" fill="${pColor[b.key]}" rx="2"><title>${pLabel(b.key)}: ${b.votes.toFixed(1)}% (${stageLabel})</title></rect>`;
+      if (si === 0) {
+        svg += `<text x="${x - 4}" y="${(b.y + b.h / 2 + 4).toFixed(1)}" text-anchor="end" font-size="9" font-weight="700" fill="${pColor[b.key]}">${pLabel(b.key)} ${b.votes.toFixed(1)}%</text>`;
+      } else if (si === nStages - 1) {
+        svg += `<text x="${x + nodeW + 4}" y="${(b.y + b.h / 2 + 4).toFixed(1)}" text-anchor="start" font-size="9" font-weight="700" fill="${pColor[b.key]}">${pLabel(b.key)} ${b.votes.toFixed(1)}%</text>`;
+      }
+    });
+    svg += `<text x="${x + nodeW / 2}" y="13" text-anchor="middle" font-size="9" fill="#999">${stageLabel}</text>`;
+    if (si > 0) {
+      const elim = s.elimSteps[si - 1].eliminated;
+      svg += `<text x="${x + nodeW / 2}" y="${H - 1}" text-anchor="middle" font-size="8" fill="#bbb">\u2717 ${pLabel(elim)}</text>`;
+    }
+  });
+
+  svg += '</svg>';
+  return '<div style="grid-column:1/-1"><span class="detail-label">Preference flow</span><div class="seat-sankey">' + svg + '</div></div>';
+}
+
+// === MAIN UPDATE ===
+function update() {
+  updateDisplay();
+  const v = getValues();
+  const alpTPP = calcTPP(v);
+  const swing = calcSwing(alpTPP);
+  renderTPP(alpTPP, swing);
+  const outcomes = calcSeatOutcomes(swing, v);
+  const counts = countSeats(outcomes);
+  renderSeatCounts(counts);
+  renderHemicycle(outcomes);
+  renderTable(outcomes);
+}
+
+// === EVENT HANDLERS ===
+let debounceTimer;
+Object.keys(sliders).forEach(key => {
+  sliders[key].addEventListener('input', () => {
+    if (lockedSliders.has(key)) return;
+    constrainSliders(key);
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(update, 16);
+  });
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  lockedSliders.clear();
+  document.querySelectorAll('.lock-btn').forEach(b => b.classList.remove('locked'));
+  Object.values(sliders).forEach(s => s.classList.remove('locked-slider'));
+  PREF.onp_alp = 0.255;
+  PREF.coal_on = 0.60;
+  PREF.alp_on = 0.45;
+  PREF.oth_alp = 0.4925;
+  document.querySelector('input[name="onpref"][value="25.5"]').checked = true;
+  document.querySelector('input[name="coalpref"][value="60"]').checked = true;
+  document.querySelector('input[name="alppref"][value="45"]').checked = true;
+  document.querySelector('input[name="othpref"][value="49"]').checked = true;
+  setValues(BASELINE);
+  update();
+});
+
+document.getElementById('btn-polls').addEventListener('click', () => {
+  lockedSliders.clear();
+  document.querySelectorAll('.lock-btn').forEach(b => b.classList.remove('locked'));
+  Object.values(sliders).forEach(s => s.classList.remove('locked-slider'));
+  setValues(CURRENT_POLLS);
+  update();
+});
+
+// Preference assumption radio buttons
+document.querySelectorAll('input[name="onpref"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    PREF.onp_alp = parseFloat(radio.value) / 100;
+    update();
+  });
+});
+
+document.querySelectorAll('input[name="coalpref"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    PREF.coal_on = parseFloat(radio.value) / 100;
+    update();
+  });
+});
+
+document.querySelectorAll('input[name="alppref"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    PREF.alp_on = parseFloat(radio.value) / 100;
+    update();
+  });
+});
+
+document.querySelectorAll('input[name="othpref"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    PREF.oth_alp = parseFloat(radio.value) / 100;
+    update();
+  });
+});
+
+// Table filter buttons
+document.getElementById('table-filter').addEventListener('click', e => {
+  const btn = e.target.closest('.filter-btn');
+  if (!btn) return;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFilter = btn.dataset.filter;
+  const fv = getValues();
+  const outcomes = calcSeatOutcomes(calcSwing(calcTPP(fv)), fv);
+  renderTable(outcomes);
+});
+
+// Table sort
+document.querySelectorAll('thead th').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.sort;
+    if (sortCol === col) sortAsc = !sortAsc;
+    else { sortCol = col; sortAsc = true; }
+    const sv = getValues();
+    const outcomes = calcSeatOutcomes(calcSwing(calcTPP(sv)), sv);
+    renderTable(outcomes);
+  });
+});
+
+// === INIT ===
+update();
+</script>
+
+</body>
+</html>
