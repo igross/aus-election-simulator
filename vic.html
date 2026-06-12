@@ -1293,26 +1293,29 @@ function calcSeatOutcomes(swing, vals) {
 
     // === PRIMARY MODEL: GRN vs ALP and LNP vs GRN seats ===
     if ((isGRNvsALP || isLNPvsGRN) && vals) {
-      const grnSeat = Math.min(50, vals.grn * (REGION_GRN_BASE[s.region] / GRN_REF));
       const onSeat = Math.min(50, vals.onp * (REGION_ON_BASE[s.region] / ON_REF));
       const othSeat = vals.oth * OTH_SEAT_FACTOR;
-      const postSwingTPP = 50 + s.newMargin;
-      // For GRN vs ALP: inc=GRN, chal=ALP; margin > 0 means GRN ahead
-      // For LNP vs GRN: inc=LNP, chal=GRN; margin > 0 means LNP ahead
-      const incFP = Math.max(1, postSwingTPP - grnSeat * 0.15 - onSeat * 0.10 - othSeat * 0.30);
-      const chalFP = Math.max(1, 100 - incFP - (isGRNvsALP ? 0 : grnSeat) - (isLNPvsGRN ? 0 : grnSeat) - onSeat - othSeat);
+      // TCP from margin (margin is full spread: inc_TCP - chal_TCP)
+      const incTCP = (100 + s.newMargin) / 2;
+      const chalTCP = (100 - s.newMargin) / 2;
       let cands;
       if (isGRNvsALP) {
-        // GRN is incumbent, ALP is challenger; grn primary is from the seat estimate
-        const alpFP = Math.max(1, 100 - grnSeat - onSeat - othSeat - vals.coal * 0.15);
+        // GRN incumbent vs ALP challenger; use TCP ratio to split major-party votes
         const coalFP = Math.max(1, vals.coal * 0.15);
-        cands = { grn: grnSeat, alp: alpFP, coal: coalFP, on: onSeat, oth: othSeat };
+        const minorTotal = coalFP + onSeat + othSeat;
+        const majorTotal = 100 - minorTotal;
+        const grnFP = Math.max(1, majorTotal * incTCP / 100);
+        const alpFP = Math.max(1, majorTotal * chalTCP / 100);
+        cands = { grn: grnFP, alp: alpFP, coal: coalFP, on: onSeat, oth: othSeat };
         s.coalParty = 'LNP';
       } else {
-        // LNP vs GRN (Prahran): LNP inc, GRN challenger
+        // LNP vs GRN (Prahran): LNP inc, GRN challenger; ALP is significant third party
         const alpFP = Math.max(1, vals.alp * 0.45);
-        const coalFP = Math.max(1, 100 - grnSeat - alpFP - onSeat - othSeat);
-        cands = { coal: coalFP, grn: grnSeat, alp: alpFP, on: onSeat, oth: othSeat };
+        const minorTotal = alpFP + onSeat + othSeat;
+        const topTotal = 100 - minorTotal;
+        const coalFP = Math.max(1, topTotal * incTCP / 100);
+        const grnFP = Math.max(1, topTotal * chalTCP / 100);
+        cands = { coal: coalFP, grn: grnFP, alp: alpFP, on: onSeat, oth: othSeat };
         s.coalParty = s.incumbent;
       }
       s.estPrimaries = { ...cands };
