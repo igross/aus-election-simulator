@@ -177,23 +177,20 @@
   .pref-group.pref-grn .pref-title { color: #2e7d32; }
   .pref-group.pref-onp .pref-title { color: #e65100; }
   .pref-group.pref-oth .pref-title { color: #555; }
-  .pref-option {
+  .pref-slider-row {
     display: flex;
-    align-items: flex-start;
-    gap: 0.35rem;
-    padding: 0.25rem 0.4rem;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 0.75rem;
-    line-height: 1.3;
-    transition: background 0.1s;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.3rem;
   }
-  .pref-option:hover { background: rgba(255,255,255,0.6); }
-  .pref-option input[type="radio"] { margin-top: 0.15rem; flex-shrink: 0; }
-  .pref-option .pref-desc { font-size: 0.65rem; color: #888; }
-  .pref-option.benefits-alp { background: rgba(229,57,53,0.22); border-radius: 4px; border-left: 3px solid var(--alp); }
-  .pref-option.benefits-coal { background: rgba(21,101,192,0.22); border-radius: 4px; border-left: 3px solid var(--lnp); }
-  .pref-option.benefits-on { background: rgba(245,124,0,0.22); border-radius: 4px; border-left: 3px solid var(--onp); }
+  .pref-slider-row input[type="range"] { flex: 1; }
+  .pref-slider-val {
+    font-size: 0.85rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    min-width: 38px;
+    text-align: right;
+  }
 
   /* TPP display */
   .tpp-display {
@@ -578,64 +575,32 @@
       <h2>Preference Assumptions</h2>
       <div class="pref-grid">
         <div class="pref-group pref-onp">
-          <div class="pref-title">One Nation preferences<br>(ON &rarr; ALP rate)</div>
-          <label class="pref-option benefits-coal">
-            <input type="radio" name="onpref" value="15">
-            <div><strong>15% to ALP</strong><br><span class="pref-desc">Pro-Coalition deal</span></div>
-          </label>
-          <label class="pref-option">
-            <input type="radio" name="onpref" value="25.5" checked>
-            <div><strong>25.5% to ALP</strong><br><span class="pref-desc">Standard federal flows</span></div>
-          </label>
-          <label class="pref-option benefits-alp">
-            <input type="radio" name="onpref" value="35">
-            <div><strong>35% to ALP</strong><br><span class="pref-desc">More moderate ON voters</span></div>
-          </label>
+          <div class="pref-title">ON preferences &rarr; ALP</div>
+          <div class="pref-slider-row">
+            <input type="range" id="pref-onp" min="5" max="50" step="0.5" value="25.5">
+            <span class="pref-slider-val" id="pref-onp-val">25.5%</span>
+          </div>
         </div>
         <div class="pref-group pref-coal" style="background:#e3f2fd;border-left-color:var(--lnp)">
-          <div class="pref-title" style="color:#0d47a1">Coalition preferences<br>(when ON vs ALP)</div>
-          <label class="pref-option benefits-alp">
-            <input type="radio" name="coalpref" value="40">
-            <div><strong>40% to ON</strong><br><span class="pref-desc">Weak (prefer ALP over ON)</span></div>
-          </label>
-          <label class="pref-option">
-            <input type="radio" name="coalpref" value="60" checked>
-            <div><strong>60% to ON</strong><br><span class="pref-desc">Standard (prefer ON over ALP)</span></div>
-          </label>
-          <label class="pref-option benefits-on">
-            <input type="radio" name="coalpref" value="80">
-            <div><strong>80% to ON</strong><br><span class="pref-desc">Strong (informal coalition)</span></div>
-          </label>
+          <div class="pref-title" style="color:#0d47a1">Coal prefs &rarr; ON (when ON vs ALP)</div>
+          <div class="pref-slider-row">
+            <input type="range" id="pref-coal" min="20" max="90" step="1" value="60">
+            <span class="pref-slider-val" id="pref-coal-val">60%</span>
+          </div>
         </div>
         <div class="pref-group pref-alp" style="background:#ffebee;border-left-color:var(--alp)">
-          <div class="pref-title" style="color:#b71c1c">ALP preferences<br>(when ON vs Coal)</div>
-          <label class="pref-option benefits-on">
-            <input type="radio" name="alppref" value="30">
-            <div><strong>30% to ON</strong><br><span class="pref-desc">Weak (punish ON)</span></div>
-          </label>
-          <label class="pref-option">
-            <input type="radio" name="alppref" value="45" checked>
-            <div><strong>45% to ON</strong><br><span class="pref-desc">Standard (modest return)</span></div>
-          </label>
-          <label class="pref-option benefits-alp">
-            <input type="radio" name="alppref" value="60">
-            <div><strong>60% to ON</strong><br><span class="pref-desc">Strong (protest voters prefer ON)</span></div>
-          </label>
+          <div class="pref-title" style="color:#b71c1c">ALP prefs &rarr; ON (when ON vs Coal)</div>
+          <div class="pref-slider-row">
+            <input type="range" id="pref-alp" min="10" max="70" step="1" value="45">
+            <span class="pref-slider-val" id="pref-alp-val">45%</span>
+          </div>
         </div>
         <div class="pref-group pref-oth">
-          <div class="pref-title">Other preferences<br>(OTH &rarr; ALP rate)</div>
-          <label class="pref-option benefits-coal">
-            <input type="radio" name="othpref" value="42">
-            <div><strong>42% to ALP</strong><br><span class="pref-desc">Benefits Coalition</span></div>
-          </label>
-          <label class="pref-option">
-            <input type="radio" name="othpref" value="49" checked>
-            <div><strong>49% to ALP</strong><br><span class="pref-desc">2022 result (default)</span></div>
-          </label>
-          <label class="pref-option benefits-alp">
-            <input type="radio" name="othpref" value="56">
-            <div><strong>56% to ALP</strong><br><span class="pref-desc">Benefits ALP</span></div>
-          </label>
+          <div class="pref-title">Other preferences &rarr; ALP</div>
+          <div class="pref-slider-row">
+            <input type="range" id="pref-oth" min="30" max="70" step="1" value="49">
+            <span class="pref-slider-val" id="pref-oth-val">49%</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1882,10 +1847,14 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   PREF.coal_on = 0.60;
   PREF.alp_on = 0.45;
   PREF.oth_alp = 0.4925;
-  document.querySelector('input[name="onpref"][value="25.5"]').checked = true;
-  document.querySelector('input[name="coalpref"][value="60"]').checked = true;
-  document.querySelector('input[name="alppref"][value="45"]').checked = true;
-  document.querySelector('input[name="othpref"][value="49"]').checked = true;
+  document.getElementById('pref-onp').value = 25.5;
+  document.getElementById('pref-onp-val').textContent = '25.5%';
+  document.getElementById('pref-coal').value = 60;
+  document.getElementById('pref-coal-val').textContent = '60%';
+  document.getElementById('pref-alp').value = 45;
+  document.getElementById('pref-alp-val').textContent = '45%';
+  document.getElementById('pref-oth').value = 49;
+  document.getElementById('pref-oth-val').textContent = '49%';
   setValues(BASELINE);
   update();
 });
@@ -1898,33 +1867,26 @@ document.getElementById('btn-polls').addEventListener('click', () => {
   update();
 });
 
-// Preference assumption radio buttons
-document.querySelectorAll('input[name="onpref"]').forEach(radio => {
-  radio.addEventListener('change', () => {
-    PREF.onp_alp = parseFloat(radio.value) / 100;
-    update();
-  });
+// Preference assumption sliders
+document.getElementById('pref-onp').addEventListener('input', function() {
+  PREF.onp_alp = parseFloat(this.value) / 100;
+  document.getElementById('pref-onp-val').textContent = this.value + '%';
+  update();
 });
-
-document.querySelectorAll('input[name="coalpref"]').forEach(radio => {
-  radio.addEventListener('change', () => {
-    PREF.coal_on = parseFloat(radio.value) / 100;
-    update();
-  });
+document.getElementById('pref-coal').addEventListener('input', function() {
+  PREF.coal_on = parseFloat(this.value) / 100;
+  document.getElementById('pref-coal-val').textContent = this.value + '%';
+  update();
 });
-
-document.querySelectorAll('input[name="alppref"]').forEach(radio => {
-  radio.addEventListener('change', () => {
-    PREF.alp_on = parseFloat(radio.value) / 100;
-    update();
-  });
+document.getElementById('pref-alp').addEventListener('input', function() {
+  PREF.alp_on = parseFloat(this.value) / 100;
+  document.getElementById('pref-alp-val').textContent = this.value + '%';
+  update();
 });
-
-document.querySelectorAll('input[name="othpref"]').forEach(radio => {
-  radio.addEventListener('change', () => {
-    PREF.oth_alp = parseFloat(radio.value) / 100;
-    update();
-  });
+document.getElementById('pref-oth').addEventListener('input', function() {
+  PREF.oth_alp = parseFloat(this.value) / 100;
+  document.getElementById('pref-oth-val').textContent = this.value + '%';
+  update();
 });
 
 // Table filter buttons
